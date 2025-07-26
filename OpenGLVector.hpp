@@ -4,9 +4,9 @@
 #include <sstream>
 
 #include "Buffer.hpp"
-#include "../Utils/Logger.hpp"
+#include "Logger.hpp"
 #include "Size.hpp"
-#include "../Utils/Utils.hpp"
+#include "Utils.hpp"
 #include "VertexArray.hpp"
 
 /*
