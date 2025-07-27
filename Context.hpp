@@ -22,7 +22,8 @@ public:
 
 	void AddShader(
 		std::filesystem::path &vertex,
-		std::filesystem::path &fragment
+		std::filesystem::path &fragment,
+		std::uint32_t hash
 	) {
 		Shader shader;
 
@@ -34,18 +35,27 @@ public:
 			shader.fragment
 		);
 
-		shaders.emplace_back(std::move(shader));
+		auto program = &shaders.emplace(std::make_pair(hash, std::move(shader))).first->second;
+
+		// Assume the first shader should be the current one
+		if (!currentShader) currentShader = program;
 	}
 
-	const std::size_t GetNumberOfShaders() const { return shaders.size(); }
+	std::map<std::uint32_t, Shader>::iterator begin() {
+		return shaders.begin();
+	}
 
-	void Use(std::size_t index) {
-		currentShader = &shaders.at(index);
+	std::map<std::uint32_t, Shader>::iterator end() {
+		return shaders.end();
+	}
+
+	void Use(std::uint32_t hash) {
+		currentShader = &shaders.at(hash);
 		currentShader->program.Use();
 	}
 
-	void With(std::size_t index, std::function<void(Shader&)> f) {
-		auto &shader = shaders.at(index);
+	void With(std::uint32_t hash, std::function<void(Shader&)> f) {
+		auto &shader = shaders.at(hash);
 		shader.program.Use();
 
 		f(shader);
@@ -83,7 +93,7 @@ public:
 	}
 
 private:
-	std::vector<Shader> shaders;
+	std::map<std::uint32_t, Shader> shaders;
 	Shader *currentShader = nullptr;
 
 	glm::mat4 identity;
