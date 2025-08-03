@@ -5,7 +5,6 @@
 namespace Fetcko {
 class Texture {
 public:
-	Texture() = delete;
 	Texture(const Texture &) = delete;
 	Texture(Texture &&other) noexcept {
 		handle = std::move(other.handle);
@@ -14,7 +13,7 @@ public:
 		format = std::move(other.format);
 	}
 
-	Texture(GLint internalFormat = GL_RGBA, GLenum format = GL_RGBA, bool bind = false) :
+	explicit Texture(GLint internalFormat = GL_RGBA, GLenum format = GL_RGBA, bool bind = false) :
 		internalFormat(internalFormat),
 		format(format) {
 		glGenTextures(1, &handle);
