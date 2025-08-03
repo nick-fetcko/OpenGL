@@ -1,8 +1,12 @@
 #pragma once
 
+#include <codecvt>
 #include <map>
 #include <optional>
+#include <locale>
 #include <memory>
+
+#include <freetype/ftstroke.h>
 
 #include <glm/glm.hpp>
 
@@ -13,6 +17,8 @@
 #include <glad/glad.h>
 
 #include "Buffer.hpp"
+#include "Context.hpp"
+#include "Framebuffer.hpp"
 #include "Logger.hpp"
 #include "ShaderProgram.hpp"
 #include "Texture.hpp"
@@ -23,7 +29,7 @@ class OpenGLFont : public LoggableClass {
 public:
 	virtual ~OpenGLFont() = default;
 
-	static constexpr std::string_view CharacterSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/:";
+	static constexpr std::string_view CharacterSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/:' ,_()-.$";
 
 	struct Bounds {
 		Bounds() = default;
@@ -35,47 +41,76 @@ public:
 
 		}
 
-		int x = 0, y = 0, width = 0, height = 0;
+		int x = 0, y = 0, width = 0, height = 0, renderedHeight = 0;
 	};
 
-	bool Init();
+	bool OnInit(const std::vector<std::string> &fonts, FT_UInt size, int outline = 0);
+	
+	bool SetFontSize(FT_UInt size);
+	void SetOutlineRadius(int radius);
 
-	void SetShader(const ShaderProgram &shader) { this->shader = shader; }
+	void OnDestroy();
 
-	Bounds MeasureText(const std::string &text, float scale = 1.0f) const;
+	Bounds MeasureText(const std::string &text, float scale = 1.0f);
+	FT_Short GetAscender() const { return std::abs(faces.at(0)->ascender >> 6); }
+	FT_Short GetDescender() const { return std::abs(faces.at(0)->size->metrics.descender >> 6); }
 
+	std::pair<std::unique_ptr<Framebuffer>, Bounds> CacheText(const std::string &text, glm::vec3 color, Context &context);
 	void RenderText(
 		const std::string &text,
 		glm::mat4 projection, // passed by VALUE
-		glm::vec3 color
+		glm::vec3 color,
+		Context &context
 	);
+
+	void RenderCached(const std::unique_ptr<Framebuffer> &framebuffer, glm::mat4 projection, Context &context);
 
 private:
 	struct Character {
 		Character() = delete;
 		Character(Character &&) = default;
-		Character(GLint index, Texture &&texture, glm::ivec2 &&size, glm::ivec2 &&bearing, FT_Pos &&advance) :
+		Character(GLint index, Texture &&texture, glm::ivec2 &&size, glm::ivec2 &&bearing, FT_Glyph_Metrics &metrics, FT_Pos &&advance) :
 			index(index),
 			texture(std::move(texture)),
 			size(std::move(size)),
 			bearing(std::move(bearing)),
+			metrics(metrics),
 			advance(std::move(advance)) {
-
+			this->metrics.height >>= 6;
+			this->metrics.horiBearingY >>= 6;
 		}
 
 		GLint index;
 		Texture texture;	// ID handle of the glyph texture
 		glm::ivec2 size;	// Size of glyph
 		glm::ivec2 bearing;	// Offset from baseline to left/top of glyph
+		FT_Glyph_Metrics metrics;
 		FT_Pos advance;		// Offset to advance to next glyph
 	};
 
+	inline bool LoadInitialCharacters();
+	inline std::map<FT_ULong, Character>::iterator LoadGlyph(std::size_t i, const FT_ULong c);
+	std::map<FT_ULong, Character>::iterator LoadMissingGlyph(const FT_ULong c);
+
+	std::vector<std::string> fonts;
+
+	FT_Library ft;
+	std::vector<FT_Face> faces;
+
 	VertexArray vao;
 	ArrayBuffer vbo;
-	std::map<char, Character> characters;
+	std::map<FT_ULong, Character> characters;
 
-	glm::vec3 lastColor;
+	// Needs to be static since multiple instances
+	// of OpenGLFont could update the shader uniform
+	static glm::vec3 lastColor;
 
-	std::optional<std::reference_wrapper<const ShaderProgram>> shader = std::nullopt;
+	std::unique_ptr<Framebuffer> framebuffer;
+
+	std::wstring_convert<std::codecvt_utf8<uint32_t>, uint32_t> converter;
+
+	FT_Stroker stroker = nullptr;
+
+	int outlineRadius = 0;
 };
 }

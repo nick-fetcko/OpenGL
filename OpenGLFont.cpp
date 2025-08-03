@@ -1,22 +1,114 @@
 #include "OpenGLFont.hpp"
 
+#include <freetype/ftbitmap.h>
+
+#include <glm/glm.hpp>
+
+#include "Hash.hpp"
+
 namespace Fetcko {
-bool OpenGLFont::Init() {
-	FT_Library ft;
-	if (FT_Init_FreeType(&ft)) {
-		logger.LogError("Could not init FreeType Library");
-		return false;
+glm::vec3 OpenGLFont::lastColor = {
+		std::numeric_limits<float>::infinity(),
+		std::numeric_limits<float>::infinity(),
+		std::numeric_limits<float>::infinity()
+};
+
+std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::size_t i, const FT_ULong c) {
+	auto face = faces.begin();
+
+	auto index = FT_Get_Char_Index(*face, c);
+	while (index == 0) {
+		if (++face == faces.end()) {
+			--face;
+			break;
+		}
+
+		index = FT_Get_Char_Index(*face, c);
 	}
 
-	FT_Face face;
-	auto path = Utils::GetResource("Roboto-Regular.ttf").u8string();
-	if (FT_New_Face(ft, path.c_str(), 0, &face)) {
-		logger.LogError("Failed to load font");
-		return false;
+	// load character glyph 
+	if (FT_Load_Glyph(*face, index, FT_LOAD_DEFAULT)) {
+		logger.LogError("Failed to load Glyph");
+		return characters.end();
 	}
 
-	FT_Set_Pixel_Sizes(face, 0, 48);
+	FT_BitmapGlyph glyph = nullptr;
+	{
+		FT_Glyph _glyph;
+		auto error = FT_Get_Glyph((*face)->glyph, &_glyph);
 
+		if (stroker)
+			error = FT_Glyph_StrokeBorder(&_glyph, stroker, false, true);
+
+		error = FT_Glyph_To_Bitmap(&_glyph, FT_RENDER_MODE_LCD, nullptr, true);
+
+		glyph = reinterpret_cast<FT_BitmapGlyph>(_glyph);
+	}
+
+	float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
+
+	// tightly pack
+	std::vector<uint8_t> packed(glyph->bitmap.width * glyph->bitmap.rows);
+	for (unsigned int y = 0; y < glyph->bitmap.rows; ++y) {
+		for (unsigned int x = 0; x < glyph->bitmap.width; ++x) {
+			packed[y * glyph->bitmap.width + x] = glyph->bitmap.buffer[
+				y * glyph->bitmap.pitch + x
+			];
+		}
+	}
+
+	// generate texture
+	Texture texture(GL_RED, GL_RED, true);
+	texture.TexImage2D(
+		glyph->bitmap.width,
+		glyph->bitmap.rows,
+		packed.data()
+	);
+
+	// set texture options
+	texture.SetTexParameters();
+
+	// now store character for later use
+	const auto &ret = characters.emplace(
+		c,
+		Character{
+			static_cast<GLint>(i),
+			std::move(texture),
+			glm::ivec2(glyph->bitmap.width, glyph->bitmap.rows),
+			glm::ivec2(glyph->left, glyph->top),
+			(*face)->glyph->metrics,
+			(*face)->glyph->advance.x >> 6
+		}
+	).first;
+
+	FT_Done_Glyph(reinterpret_cast<FT_Glyph>(glyph));
+
+	const auto &ch = ret->second;
+
+	x = static_cast<float>(ch.bearing.x);
+	y = static_cast<float>(-ch.bearing.y);
+
+	w = static_cast<float>(ch.size.x / 3);
+	//w = static_cast<float>(ch.size.x);
+	h = static_cast<float>(ch.size.y);
+
+	// update VBO for each character
+	float vertices[6][4] = {
+		{ x,     y,     0.0f, 0.0f },
+		{ x,     y + h, 0.0f, 1.0f },
+		{ x + w, y + h, 1.0f, 1.0f },
+
+		{ x,     y,     0.0f, 0.0f },
+		{ x + w, y + h, 1.0f, 1.0f },
+		{ x + w, y,     1.0f, 0.0f }
+	};
+
+	vbo.BufferSubData(i * 6 * 4, sizeof(vertices), vertices);
+
+	return ret;
+}
+
+inline bool OpenGLFont::LoadInitialCharacters() {
 	vao.Bind();
 	vbo.Bind();
 	vbo.BufferData(sizeof(float) * 6 * 4 * CharacterSet.size());
@@ -27,58 +119,11 @@ bool OpenGLFont::Init() {
 	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
 
-	// Initialize loop variables
-	float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
-
 	for (const auto &[i, c] : Utils::Enumerate(CharacterSet)) {
-		// load character glyph 
-		if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-			logger.LogError("Failed to load Glyph");
+		if (LoadGlyph(i, c) == characters.end()) {
 			glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
 			return false;
 		}
-
-		// generate texture
-		Texture texture(GL_RED, GL_RED, true);
-		texture.TexImage2D(
-			face->glyph->bitmap.width,
-			face->glyph->bitmap.rows,
-			face->glyph->bitmap.buffer
-		);
-
-		// set texture options
-		texture.SetTexParameters();
-
-		// now store character for later use
-		const auto &ch = characters.emplace(
-			c,
-			Character {
-				static_cast<GLint>(i),
-				std::move(texture),
-				glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-				glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-				face->glyph->advance.x >> 6
-			}
-		).first->second;
-
-		x = static_cast<float>(ch.bearing.x);
-		y = static_cast<float>(-(ch.size.y - ch.bearing.y));
-
-		w = static_cast<float>(ch.size.x);
-		h = static_cast<float>(ch.size.y);
-		
-		// update VBO for each character
-		float vertices[6][4] = {
-			{ x,     y + h,   0.0f, 0.0f },
-			{ x,     y,       0.0f, 1.0f },
-			{ x + w, y,       1.0f, 1.0f },
-
-			{ x,     y + h,   0.0f, 0.0f },
-			{ x + w, y,       1.0f, 1.0f },
-			{ x + w, y + h,   1.0f, 0.0f }
-		};
-
-		vbo.BufferSubData(i * sizeof(vertices), sizeof(vertices), vertices);
 	}
 
 	vbo.Unbind();
@@ -86,66 +131,203 @@ bool OpenGLFont::Init() {
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
 
-	FT_Done_Face(face);
-	FT_Done_FreeType(ft);
+	return true;
+}
+
+bool OpenGLFont::OnInit(const std::vector<std::string> &fonts, FT_UInt size, int outline) {
+	if (FT_Init_FreeType(&ft)) {
+		logger.LogError("Could not init FreeType Library");
+		return false;
+	}
+
+	this->fonts = fonts;
+
+	faces.resize(fonts.size());
+
+	SetFontSize(size);
+
+	if (outline > 0)
+		SetOutlineRadius(outline);
+
+	if (!LoadInitialCharacters())
+		return false;
 
 	return true;
 }
 
-OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale) const {
-	Bounds ret;
+bool OpenGLFont::SetFontSize(FT_UInt size) {
+	for (auto face : faces)
+		FT_Done_Face(face);
 
-	for (const auto &c : text) {
-		const Character &ch = characters.at(c);
-		ret.width += std::lround(ch.advance * scale);
+	for (const auto &[i, font] : Utils::Enumerate(fonts)) {
+		auto path = Utils::GetResource(font).u8string();
+		if (FT_New_Face(ft, path.c_str(), 0, &faces[i])) {
+			logger.LogError("Failed to load font ", font);
+			return false;
+		}
 
-		// Find max bearing
-		if (ch.bearing.y * scale > ret.height)
-			ret.height = std::lround(ch.bearing.y * scale);
+		FT_Set_Pixel_Sizes(faces[i], 0, size);
 	}
+
+	// Flush any characters we have
+	characters.clear();
+
+	return true;
+}
+
+void OpenGLFont::SetOutlineRadius(int radius) {
+	FT_Stroker_Done(stroker);
+
+	FT_Stroker_New(ft, &stroker);
+	FT_Stroker_Set(stroker, radius * 64, FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
+	outlineRadius = radius;
+
+	// Flush any characters we have
+	characters.clear();
+}
+
+void OpenGLFont::OnDestroy() {
+	FT_Stroker_Done(stroker);
+
+	for (auto face : faces)
+		FT_Done_Face(face);
+
+	FT_Done_FreeType(ft);
+}
+
+std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadMissingGlyph(const FT_ULong c) {
+	GLint previousUnpackAlignment = 0;
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
+
+	vbo.Bind();
+
+	// FIXME: is there a more efficient way to do this?
+	auto data = vbo.GetBufferSubData(0, 6 * 4 * characters.size());
+	vbo.BufferData(sizeof(float) * 6 * 4 * (characters.size() + 1));
+	vbo.BufferSubData(0, 6 * 4 * characters.size() * sizeof(float), data.data());
+
+	auto ret = LoadGlyph(characters.size(), c);
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
+
+	vbo.Unbind();
 
 	return ret;
 }
 
-void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::vec3 color) {
-	// Only update our uniform if it needs updating
-	if (color != lastColor && shader) {
-		shader->get().Uniform3f("color", color.x, color.y, color.z);
+OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale) {
+	Bounds ret;
+
+	ret.height = (*faces.begin())->size->metrics.height >> 6;
+	ret.height -= GetDescender() / 2 + outlineRadius * 2;
+
+	const auto converted = converter.from_bytes(text);
+
+	for (const auto &c : converted) {
+		// FIXME: ID3 Unicode parsing can sometimes add an additional null,
+		//        so right now we have to account for that.
+		if (c == '\0') break;
+
+		auto ch = characters.find(c);
+		if (ch == characters.end())
+			ch = LoadMissingGlyph(c);
+
+		ret.width += std::lround(ch->second.advance * scale);
+
+		// Find max y bearing
+		if (ch->second.bearing.y * scale > ret.y)
+			ret.y = std::lround(ch->second.bearing.y * scale);
+
+		// Find max height
+		if ((ch->second.metrics.height + (ch->second.metrics.height - ch->second.metrics.horiBearingY)) * scale > ret.renderedHeight)
+			ret.renderedHeight = (ch->second.metrics.height + (ch->second.metrics.height - ch->second.metrics.horiBearingY)) * scale;
+	}
+
+	ret.width += outlineRadius * 2;
+	ret.renderedHeight += outlineRadius * 3;
+
+	return ret;
+}
+
+std::pair<std::unique_ptr<Framebuffer>, OpenGLFont::Bounds> OpenGLFont::CacheText(const std::string &text, glm::vec3 color, Context &context) {
+	const auto bounds = MeasureText(text, 1.0f);
+
+	auto framebuffer = std::make_unique<Framebuffer>(bounds.width, bounds.renderedHeight);
+	framebuffer->Bind();
+	GLint oldViewport[4];
+
+	// We don't want to apply the alpha channel twice
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	glGetIntegerv(GL_VIEWPORT, oldViewport);
+	glViewport(0, 0, bounds.width, bounds.renderedHeight);
+	auto projection = glm::ortho(0.0f, static_cast<float>(bounds.width), 0.0f, static_cast<float>(bounds.renderedHeight));
+	projection = glm::translate(projection, glm::vec3(outlineRadius, outlineRadius + bounds.y, 0.0f));
+	RenderText(text, projection, color, context);
+	framebuffer->Unbind();
+	glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);
+
+	// Return to our normal blending
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	return std::make_pair(std::move(framebuffer), bounds);
+}
+
+void OpenGLFont::RenderCached(const std::unique_ptr<Framebuffer> &framebuffer, glm::mat4 projection, Context &context) {
+	context.Translate(-outlineRadius, -outlineRadius * 2, 0);
+	context.Apply();
+
+	framebuffer->Draw(0, 0, context);
+
+	context.Translate(outlineRadius, outlineRadius * 2, 0);
+	context.Apply();
+}
+
+void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::vec3 color, Context &context) {
+	context.Use("font"_hash);
+
+	if (color != lastColor) {
+		context.Color(color.x, color.y, color.z, 1.0f);
 		lastColor = color;
 	}
 
-	glEnable(GL_BLEND);
-	glActiveTexture(GL_TEXTURE0);
 	vao.Bind();
 
-	// iterate through all characters
-	for (const auto &c : text) {
-		if (shader) {
-			shader->get().UniformMatrix4fv(
-				"projection",
-				1,
-				GL_FALSE,
-				projection
-			);
-		}
+	const auto converted = converter.from_bytes(text);
 
-		const Character &ch = characters.at(c);
+	// iterate through all characters
+	for (const auto &c : converted) {
+		if (c == '\0') break;
+
+		context.GetShaderProgram().UniformMatrix4fv(
+			"projection",
+			1,
+			GL_FALSE,
+			projection
+		);
+
+		auto &ch = characters.find(c);
+		if (ch == characters.end())
+			ch = LoadMissingGlyph(c);
 
 		// render glyph texture over quad
-		ch.texture.Bind();
+		ch->second.texture.Bind();
 		// render quad
-		vbo.DrawArrays(GL_TRIANGLES, 6 * ch.index, 6);
+		vbo.DrawArrays(GL_TRIANGLES, 6 * ch->second.index, 6);
 
 		// now advance cursors for next glyph
 		projection = glm::translate(
 			projection,
 			glm::vec3(
-				ch.advance,
+				ch->second.advance,
 				0,
 				0
 			)
 		);
 	}
 	vao.Unbind();
+
+	context.Use("texture"_hash);
 }
 }
