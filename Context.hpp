@@ -79,6 +79,12 @@ public:
 			glm::vec3(x, y, z)
 		); 
 	}
+	inline void Scale(float x, float y, float z) {
+		projection = glm::scale(
+			projection,
+			glm::vec3(x, y, z)
+		);
+	}
 	inline void Color(float r, float g, float b, float a) {
 		currentShader->program.Uniform4f("color", r, g, b, a);
 	}
