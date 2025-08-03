@@ -155,6 +155,25 @@ bool OpenGLFont::OnInit(const std::vector<std::string> &fonts, FT_UInt size, int
 	return true;
 }
 
+bool OpenGLFont::OnInit(const std::string &rootFont, FT_UInt size, int outline) {
+	std::vector<std::string> fontFiles;
+
+	// Find all fonts that start with rootFont
+	for (const auto &iter : std::filesystem::directory_iterator(Utils::GetResourceFolder())) {
+		if (iter.path().stem().u8string().find(rootFont) == 0 &&
+			iter.path().extension().u8string() == ".ttf") {
+			fontFiles.emplace_back(iter.path().filename().u8string());
+		}
+	}
+
+	if (fontFiles.empty()) {
+		logger.LogError("Could not find any font files with the root of '", rootFont, "'!");
+		return false;
+	}
+
+	return OnInit(fontFiles, size, outline);
+}
+
 bool OpenGLFont::SetFontSize(FT_UInt size) {
 	for (auto face : faces)
 		FT_Done_Face(face);

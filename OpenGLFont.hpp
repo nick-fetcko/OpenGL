@@ -45,6 +45,9 @@ public:
 	};
 
 	bool OnInit(const std::vector<std::string> &fonts, FT_UInt size, int outline = 0);
+	bool OnInit(const std::string &rootFont, FT_UInt size, int outline = 0);
+
+	const bool HasFaces() const { return !faces.empty(); }
 	
 	bool SetFontSize(FT_UInt size);
 	void SetOutlineRadius(int radius);
