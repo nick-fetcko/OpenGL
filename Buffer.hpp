@@ -55,6 +55,12 @@ public:
 		glBufferSubData(E, offset * sizeof(T), size, data);
 	}
 
+	std::vector<T> GetBufferSubData(GLintptr offset, GLsizeiptr size) {
+		std::vector<T> ret(size);
+		glGetBufferSubData(E, offset * sizeof(T), size * sizeof(T), ret.data());
+		return ret;
+	}
+
 	inline constexpr void DrawArrays(GLenum mode, GLint first, GLsizei count) {
 		glDrawArrays(mode, first, count);
 	}
