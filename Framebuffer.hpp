@@ -118,7 +118,7 @@ public:
 	const GLsizei &GetWidth() const { return width; }
 	const GLsizei &GetHeight() const { return height; }
 
-	std::vector<uint8_t> GetBitmap(GLenum format = GL_RGBA, bool upsideDown = true) {
+	std::vector<uint8_t> GetBitmap(GLenum format = GL_RGBA, bool upsideDown = true) const {
 		texture.Bind();
 
 		auto pitch = static_cast<GLsizei>(std::ceil(width * 3 / 4.0f) * 4);
