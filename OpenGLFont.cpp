@@ -241,6 +241,8 @@ OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale)
 	ret.height = (*faces.begin())->size->metrics.height >> 6;
 	ret.height -= GetDescender() / 2 + outlineRadius * 2;
 
+	int belowBaseline = 0;
+
 	const auto converted = converter.from_bytes(text);
 
 	for (const auto &c : converted) {
@@ -258,13 +260,19 @@ OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale)
 		if (ch->second.bearing.y * scale > ret.y)
 			ret.y = std::lround(ch->second.bearing.y * scale);
 
+		// Are any of our characters _below_ the baseline?
+		if (ch->second.bearing.y < 0) {
+			if ((ch->second.metrics.height - ch->second.metrics.horiBearingY) * scale > belowBaseline)
+				belowBaseline = (ch->second.metrics.height - ch->second.metrics.horiBearingY) * scale;
+		}
+
 		// Find max height
 		if ((ch->second.metrics.height + (ch->second.metrics.height - ch->second.metrics.horiBearingY)) * scale > ret.renderedHeight)
 			ret.renderedHeight = (ch->second.metrics.height + (ch->second.metrics.height - ch->second.metrics.horiBearingY)) * scale;
 	}
 
 	ret.width += outlineRadius * 2;
-	ret.renderedHeight += outlineRadius * 3;
+	ret.renderedHeight += outlineRadius * 3 + belowBaseline;
 
 	return ret;
 }
