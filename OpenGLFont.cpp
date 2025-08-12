@@ -58,7 +58,7 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::s
 	}
 
 	// generate texture
-	Texture texture(GL_RED, GL_RED, true);
+	Texture2D texture(GL_RED, GL_RED, true);
 	texture.TexImage2D(
 		glyph->bitmap.width,
 		glyph->bitmap.rows,
@@ -277,10 +277,10 @@ OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale)
 	return ret;
 }
 
-std::pair<std::unique_ptr<Framebuffer>, OpenGLFont::Bounds> OpenGLFont::CacheText(const std::string &text, glm::vec3 color, Context &context) {
+std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::CacheText(const std::string &text, glm::vec3 color, Context &context) {
 	const auto bounds = MeasureText(text, 1.0f);
 
-	auto framebuffer = std::make_unique<Framebuffer>(bounds.width, bounds.renderedHeight);
+	auto framebuffer = std::make_unique<FramebufferObject>(bounds.width, bounds.renderedHeight);
 	framebuffer->Bind();
 	GLint oldViewport[4];
 
@@ -301,7 +301,7 @@ std::pair<std::unique_ptr<Framebuffer>, OpenGLFont::Bounds> OpenGLFont::CacheTex
 	return std::make_pair(std::move(framebuffer), bounds);
 }
 
-void OpenGLFont::RenderCached(const std::unique_ptr<Framebuffer> &framebuffer, glm::mat4 projection, Context &context) {
+void OpenGLFont::RenderCached(const std::unique_ptr<FramebufferObject> &framebuffer, glm::mat4 projection, Context &context) {
 	context.Translate(-outlineRadius, -outlineRadius * 2, 0);
 	context.Apply();
 

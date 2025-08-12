@@ -33,6 +33,7 @@ struct [[gnu::packed]] BITMAPINFOHEADER {
 };
 #pragma pack (pop)
 
+template<bool Multisampled>
 class Framebuffer : public LoggableClass {
 public:
 	Framebuffer(GLsizei width, GLsizei height) {
@@ -41,12 +42,40 @@ public:
 
 		glGenFramebuffers(1, &handle);
 
-		Bind();
+		// Can't call Bind() for this, as it will
+		// try to bind the multisampled handle
+		glBindFramebuffer(GL_FRAMEBUFFER, handle);
+
 		texture.Bind();
 		texture.TexImage2D(width, height, nullptr);
 		texture.SetTexParameters();
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.GetHandle(), 0);
 		texture.Unbind();
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			logger.LogError("Framebuffer not complete!");
+
+		if constexpr (Multisampled) {
+			glGenFramebuffers(1, &multisampledHandle);
+
+			Bind();
+
+			multisampledTexture = std::make_unique<MultisampledTexture2D>();
+			multisampledTexture->Bind();
+			multisampledTexture->TexImage2DMultisample(width, height);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, multisampledTexture->GetHandle(), 0);
+			multisampledTexture->Unbind();
+
+			// Generate the depth attachment
+			glGenRenderbuffers(1, &depthBuffer);
+			glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
+			glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, width, height);
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+
+			if (auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER); status != GL_FRAMEBUFFER_COMPLETE)
+				logger.LogError("Multisampled framebuffer not complete! status = ", status);
+		}
+
 		Unbind();
 
 		std::vector<float> squareBuffer = {
@@ -67,33 +96,59 @@ public:
 		eab.Bind();
 		eab.BufferData<std::size(Buffers::SquareBuffer)>(Buffers::SquareBuffer);
 		eab.Unbind();
-
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			logger.LogError("Framebuffer not complete!");
 	}
 	~Framebuffer() {
 		glDeleteFramebuffers(1, &handle);
+
+		if constexpr (Multisampled) {
+			glDeleteFramebuffers(1, &multisampledHandle);
+			glDeleteRenderbuffers(1, &depthBuffer);
+		}
 	}
 
 	void Bind() {
-		glBindFramebuffer(GL_FRAMEBUFFER, handle);
+		if constexpr (Multisampled)
+			glBindFramebuffer(GL_FRAMEBUFFER, multisampledHandle);
+		else
+			glBindFramebuffer(GL_FRAMEBUFFER, handle);
 	}
 
 	void Unbind() {
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	void Draw(GLfloat x, GLfloat y, Context &context) {
+	template<
+		bool _Multisampled = Multisampled,
+		typename std::enable_if_t<_Multisampled == true, bool> * = nullptr
+	>
+	void DrawMultisampled(GLfloat x, GLfloat y, Context &context) {
+		multisampledTexture->Bind();
+
+		_Draw(x, y, context);
+
+		multisampledTexture->Unbind();
+	}
+
+	void Draw(GLfloat x, GLfloat y, Context &context, Framebuffer *target = nullptr) {
+		if constexpr (Multisampled) {
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledHandle);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target ? target->multisampledHandle : handle);
+
+			glBlitFramebuffer(
+				0, height, width, 0, // invert Y so we aren't upside-down
+				0, 0, width, height,
+				GL_COLOR_BUFFER_BIT,
+				GL_LINEAR
+			);
+			Unbind();
+
+			if (target)
+				return;
+		}
+
 		texture.Bind();
 
-		context.Translate(x, y, 0);
-		context.Apply();
-
-		vao.Bind();
-		eab.Bind();
-		eab.DrawElements(GL_TRIANGLES);
-		eab.Unbind();
-		vao.Unbind();
+		_Draw(x, y, context);
 
 		texture.Unbind();
 	}
@@ -160,15 +215,34 @@ public:
 	}
 
 private:
+	inline void _Draw(GLfloat x, GLfloat y, Context &context) {
+		context.Translate(x, y, 0);
+		context.Apply();
+
+		vao.Bind();
+		eab.Bind();
+		eab.DrawElements(GL_TRIANGLES);
+		eab.Unbind();
+		vao.Unbind();
+	}
+
 	GLuint handle = 0;
 
 	GLsizei width = 0;
 	GLsizei height = 0;
 
-	Texture texture;
+	Texture2D texture;
 
 	VertexArray vao;
 	ArrayBuffer vbo;
 	ElementBuffer eab;
+
+	GLuint multisampledHandle = 0;
+	std::unique_ptr<MultisampledTexture2D> multisampledTexture;
+	GLuint depthBuffer = 0;
 };
+
+using FramebufferObject = Framebuffer<false>;
+using MultisampledFramebufferObject = Framebuffer<true>;
+
 }

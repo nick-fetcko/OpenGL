@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 
 namespace Fetcko {
+template<GLenum E>
 class Texture {
 public:
 	Texture(const Texture &) = delete;
@@ -25,16 +26,16 @@ public:
 	}
 
 	void Bind() const {
-		glBindTexture(GL_TEXTURE_2D, handle);
+		glBindTexture(E, handle);
 	}
 
 	void Unbind() const {
-		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindTexture(E, 0);
 	}
 
 	void TexImage2D(GLsizei width, GLsizei height, const void *data) const {
 		glTexImage2D(
-			GL_TEXTURE_2D,
+			E,
 			0,
 			internalFormat,
 			width,
@@ -46,11 +47,30 @@ public:
 		);
 	}
 
+	template<
+		GLenum _E = E,
+		typename std::enable_if_t<_E == GL_TEXTURE_2D_MULTISAMPLE, bool> * = nullptr
+	>
+	void TexImage2DMultisample(GLsizei width, GLsizei height) const {
+		glTexImage2DMultisample(
+			E,
+			4,
+			internalFormat,
+			width,
+			height,
+			GL_TRUE
+		);
+	}
+
+	template<
+		GLenum _E = E,
+		typename std::enable_if_t<_E == GL_TEXTURE_2D, bool> * = nullptr
+	>
 	void SetTexParameters(GLint wrapParam = GL_CLAMP_TO_EDGE, GLint filterParam = GL_LINEAR) const {
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapParam);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapParam);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filterParam);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filterParam);
+		glTexParameteri(E, GL_TEXTURE_WRAP_S, wrapParam);
+		glTexParameteri(E, GL_TEXTURE_WRAP_T, wrapParam);
+		glTexParameteri(E, GL_TEXTURE_MIN_FILTER, filterParam);
+		glTexParameteri(E, GL_TEXTURE_MAG_FILTER, filterParam);
 	}
 
 	const GLuint &GetHandle() const { return handle; }
@@ -61,4 +81,7 @@ private:
 	GLint internalFormat = GL_RGBA;
 	GLenum format = GL_RGBA;
 };
+
+using Texture2D = Texture<GL_TEXTURE_2D>;
+using MultisampledTexture2D = Texture<GL_TEXTURE_2D_MULTISAMPLE>;
 }

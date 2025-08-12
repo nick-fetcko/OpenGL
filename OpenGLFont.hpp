@@ -58,7 +58,7 @@ public:
 	FT_Short GetAscender() const { return std::abs(faces.at(0)->ascender >> 6); }
 	FT_Short GetDescender() const { return std::abs(faces.at(0)->size->metrics.descender >> 6); }
 
-	std::pair<std::unique_ptr<Framebuffer>, Bounds> CacheText(const std::string &text, glm::vec3 color, Context &context);
+	std::pair<std::unique_ptr<FramebufferObject>, Bounds> CacheText(const std::string &text, glm::vec3 color, Context &context);
 	void RenderText(
 		const std::string &text,
 		glm::mat4 projection, // passed by VALUE
@@ -66,13 +66,13 @@ public:
 		Context &context
 	);
 
-	void RenderCached(const std::unique_ptr<Framebuffer> &framebuffer, glm::mat4 projection, Context &context);
+	void RenderCached(const std::unique_ptr<FramebufferObject> &framebuffer, glm::mat4 projection, Context &context);
 
 private:
 	struct Character {
 		Character() = delete;
 		Character(Character &&) = default;
-		Character(GLint index, Texture &&texture, glm::ivec2 &&size, glm::ivec2 &&bearing, FT_Glyph_Metrics &metrics, FT_Pos &&advance) :
+		Character(GLint index, Texture2D &&texture, glm::ivec2 &&size, glm::ivec2 &&bearing, FT_Glyph_Metrics &metrics, FT_Pos &&advance) :
 			index(index),
 			texture(std::move(texture)),
 			size(std::move(size)),
@@ -84,7 +84,7 @@ private:
 		}
 
 		GLint index;
-		Texture texture;	// ID handle of the glyph texture
+		Texture2D texture;	// ID handle of the glyph texture
 		glm::ivec2 size;	// Size of glyph
 		glm::ivec2 bearing;	// Offset from baseline to left/top of glyph
 		FT_Glyph_Metrics metrics;
@@ -108,7 +108,7 @@ private:
 	// of OpenGLFont could update the shader uniform
 	static glm::vec3 lastColor;
 
-	std::unique_ptr<Framebuffer> framebuffer;
+	std::unique_ptr<FramebufferObject> framebuffer;
 
 	std::wstring_convert<std::codecvt_utf8<uint32_t>, uint32_t> converter;
 
