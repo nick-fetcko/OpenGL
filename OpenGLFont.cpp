@@ -291,6 +291,8 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	glViewport(0, 0, bounds.width, bounds.renderedHeight);
 	auto projection = glm::ortho(0.0f, static_cast<float>(bounds.width), 0.0f, static_cast<float>(bounds.renderedHeight));
 	projection = glm::translate(projection, glm::vec3(outlineRadius, outlineRadius + bounds.y, 0.0f));
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 	RenderText(text, projection, color, context);
 	framebuffer->Unbind();
 	glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);

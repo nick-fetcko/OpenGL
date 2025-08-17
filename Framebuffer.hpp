@@ -97,7 +97,7 @@ public:
 		eab.BufferData<std::size(Buffers::SquareBuffer)>(Buffers::SquareBuffer);
 		eab.Unbind();
 	}
-	~Framebuffer() {
+	virtual ~Framebuffer() {
 		glDeleteFramebuffers(1, &handle);
 
 		if constexpr (Multisampled) {
