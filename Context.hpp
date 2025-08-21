@@ -63,7 +63,9 @@ public:
 		currentShader->program.Use();
 	}
 
-	void SetProjection(glm::mat4 &&projection) { identity = std::move(projection); this->projection = identity; }
+	void SetIdentity(glm::mat4 &&projection) { identity = std::move(projection); this->projection = identity; }
+	void SetProjection(glm::mat4 &&projection) { this->projection = std::move(projection); }
+
 	const glm::mat4 &GetProjection() const { return projection; }
 
 	inline void Translate(float x, float y, float z) { 
@@ -94,7 +96,7 @@ public:
 	}
 
 	inline void LoadIdentity() { 
-		projection = identity; 
+		projection = identity;
 		Apply();
 	}
 
