@@ -97,6 +97,27 @@ public:
 		eab.BufferData<std::size(Buffers::SquareBuffer)>(Buffers::SquareBuffer);
 		eab.Unbind();
 	}
+
+	Framebuffer(Framebuffer &&other) noexcept {
+		handle = other.handle;
+		other.handle = 0;
+
+		width = other.width;
+		height = other.height;
+
+		texture = std::move(other.texture);
+		vao = std::move(other.vao);
+		vbo = std::move(other.vbo);
+		eab = std::move(other.eab);
+
+		multisampledHandle = other.multisampledHandle;
+		other.multisampledHandle = 0;
+
+		multisampledTexture = std::move(other.multisampledTexture);
+		depthBuffer = other.depthBuffer;
+		other.depthBuffer = 0;
+	}
+
 	virtual ~Framebuffer() {
 		glDeleteFramebuffers(1, &handle);
 

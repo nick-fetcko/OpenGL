@@ -50,6 +50,21 @@ public:
 	VertexArray() {
 		glGenVertexArrays(1, &handle);
 	}
+
+	VertexArray(VertexArray &&other) noexcept {
+		handle = other.handle;
+		other.handle = 0;
+		attributes = std::move(other.attributes);
+	}
+
+	VertexArray &operator=(VertexArray &&right) {
+		handle = right.handle;
+		right.handle = 0;
+		attributes = std::move(right.attributes);
+
+		return *this;
+	}
+
 	~VertexArray() {
 		glDeleteVertexArrays(1, &handle);
 	}

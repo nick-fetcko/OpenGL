@@ -14,6 +14,15 @@ public:
 		format = std::move(other.format);
 	}
 
+	Texture &operator=(Texture &&right) noexcept {
+		handle = right.handle;
+		right.handle = 0;
+		internalFormat = right.internalFormat;
+		format = right.format;
+
+		return *this;
+	}
+
 	explicit Texture(GLint internalFormat = GL_RGBA, GLenum format = GL_RGBA, bool bind = false) :
 		internalFormat(internalFormat),
 		format(format) {

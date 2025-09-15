@@ -27,6 +27,21 @@ public:
 	Buffer() {
 		glGenBuffers(1, &handle);
 	}
+
+	Buffer(Buffer &&other) noexcept {
+		handle = other.handle;
+		size = other.size;
+		other.handle = 0;
+	}
+
+	Buffer &operator=(Buffer &&right) {
+		handle = right.handle;
+		size = right.size;
+		right.handle = 0;
+
+		return *this;
+	}
+
 	~Buffer() {
 		glDeleteBuffers(1, &handle);
 	}
