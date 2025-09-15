@@ -36,7 +36,7 @@ struct [[gnu::packed]] BITMAPINFOHEADER {
 template<bool Multisampled>
 class Framebuffer : public LoggableClass {
 public:
-	Framebuffer(GLsizei width, GLsizei height) {
+	Framebuffer(GLsizei width, GLsizei height, GLint format = GL_RGBA) : texture(format) {
 		this->width = width;
 		this->height = height;
 
@@ -60,7 +60,7 @@ public:
 
 			Bind();
 
-			multisampledTexture = std::make_unique<MultisampledTexture2D>();
+			multisampledTexture = std::make_unique<MultisampledTexture2D>(format);
 			multisampledTexture->Bind();
 			multisampledTexture->TexImage2DMultisample(width, height);
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, multisampledTexture->GetHandle(), 0);
