@@ -150,23 +150,35 @@ public:
 		multisampledTexture->Unbind();
 	}
 
+	inline void Blit(Framebuffer *target = nullptr) {
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledHandle);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target ? target->multisampledHandle : handle);
+
+		glBlitFramebuffer(
+			0, height, width, 0, // invert Y so we aren't upside-down
+			0, 0, width, height,
+			GL_COLOR_BUFFER_BIT,
+			GL_LINEAR
+		);
+		Unbind();
+	}
+
 	void Draw(GLfloat x, GLfloat y, Context &context, Framebuffer *target = nullptr) {
 		if constexpr (Multisampled) {
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledHandle);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target ? target->multisampledHandle : handle);
-
-			glBlitFramebuffer(
-				0, height, width, 0, // invert Y so we aren't upside-down
-				0, 0, width, height,
-				GL_COLOR_BUFFER_BIT,
-				GL_LINEAR
-			);
-			Unbind();
+			Blit(target);
 
 			if (target)
 				return;
 		}
 
+		texture.Bind();
+
+		_Draw(x, y, context);
+
+		texture.Unbind();
+	}
+
+	void DrawWithoutBlitting(GLfloat x, GLfloat y, Context &context) {
 		texture.Bind();
 
 		_Draw(x, y, context);
