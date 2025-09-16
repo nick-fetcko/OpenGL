@@ -13,6 +13,11 @@ public:
 		handle = glCreateShader(E);
 	}
 
+	Shader(Shader &&other) noexcept {
+		handle = other.handle;
+		other.handle = 0;
+	}
+
 	~Shader() {
 		glDeleteShader(handle);
 	}

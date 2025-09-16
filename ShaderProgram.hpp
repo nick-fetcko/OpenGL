@@ -8,13 +8,16 @@
 #include "Shader.hpp"
 
 namespace Fetcko {
-class ShaderProgram {
+class ShaderProgram : public LoggableClass {
 public:
 	ShaderProgram();
+	ShaderProgram(ShaderProgram &&other) noexcept;
+
+	virtual ~ShaderProgram();
 
 	void Attach(
 		const VertexShader &vertexShader,
-		const FragmentShader &fragmentShader
+		const std::vector<FragmentShader> &fragmentShaders
 	);
 
 	void Use() const;
@@ -49,10 +52,10 @@ public:
 	void Uniform4f(const std::string &uniform, float x, float y, float z, float w) const;
 
 private:
-	GLuint handle;
+	GLuint handle = 0;
 
 	std::optional<std::reference_wrapper<const VertexShader>> vertexShader = std::nullopt;
-	std::optional<std::reference_wrapper<const FragmentShader>> fragmentShader = std::nullopt;
+	std::optional<std::reference_wrapper<const std::vector<FragmentShader>>> fragmentShaders = std::nullopt;
 
 	std::map<std::string, GLuint> uniforms;
 };

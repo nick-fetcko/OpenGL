@@ -57,7 +57,7 @@ public:
 		attributes = std::move(other.attributes);
 	}
 
-	VertexArray &operator=(VertexArray &&right) {
+	VertexArray &operator=(VertexArray &&right) noexcept {
 		handle = right.handle;
 		right.handle = 0;
 		attributes = std::move(right.attributes);

@@ -5,16 +5,46 @@ ShaderProgram::ShaderProgram() {
 	handle = glCreateProgram();
 }
 
+ShaderProgram::ShaderProgram(ShaderProgram &&other) noexcept {
+	handle = other.handle;
+	other.handle = 0;
+
+	vertexShader = std::move(other.vertexShader);
+	fragmentShaders = std::move(other.fragmentShaders);
+
+	uniforms = std::move(other.uniforms);
+}
+
+ShaderProgram::~ShaderProgram() {
+	glDeleteProgram(handle);
+}
+
 void ShaderProgram::Attach(
 	const VertexShader &vertexShader,
-	const FragmentShader &fragmentShader
+	const std::vector<FragmentShader> &fragmentShaders
 ) {
 	this->vertexShader = vertexShader;
-	this->fragmentShader = fragmentShader;
+	this->fragmentShaders = fragmentShaders;
 
 	glAttachShader(handle, vertexShader.GetHandle());
-	glAttachShader(handle, fragmentShader.GetHandle());
+
+	for (const auto &fragment : fragmentShaders)
+		glAttachShader(handle, fragment.GetHandle());
+
+	int ret;
+
 	glLinkProgram(handle);
+	glGetProgramiv(handle, GL_LINK_STATUS, &ret);
+
+	if (!ret) {
+		GLint size = 0;
+		glGetProgramiv(handle, GL_INFO_LOG_LENGTH, &size);
+
+		std::vector<char> infoLog(size);
+		glGetProgramInfoLog(handle, size, nullptr, infoLog.data());
+
+		logger.LogError("Shader linking failed:\n", std::string(infoLog.begin(), infoLog.end()));
+	}
 }
 
 void ShaderProgram::Use() const {

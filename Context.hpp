@@ -12,7 +12,7 @@ class Context {
 public:
 	struct Shader {
 		VertexShader vertex;
-		FragmentShader fragment;
+		std::vector<FragmentShader> fragments;
 		ShaderProgram program;
 	};
 	//VertexShader &GetVertexShader() { return vertexShader; }
@@ -20,25 +20,44 @@ public:
 
 	ShaderProgram &GetShaderProgram() { return currentShader->program; }
 
-	void AddShader(
+	Shader *AddShader(
 		std::filesystem::path &vertex,
 		std::filesystem::path &fragment,
+		std::uint32_t hash
+	) {
+		return AddShader(vertex, std::vector<std::filesystem::path>{ fragment }, hash);
+	}
+
+	Shader *AddShader(
+		std::filesystem::path &vertex,
+		std::vector<std::filesystem::path> &fragments,
 		std::uint32_t hash
 	) {
 		Shader shader;
 
 		shader.vertex.Compile(vertex);
-		shader.fragment.Compile(fragment);
+
+		for (const auto &fragment : fragments) {
+			FragmentShader fragmentShader;
+			fragmentShader.Compile(fragment);
+			shader.fragments.emplace_back(std::move(fragmentShader));
+		}
 
 		shader.program.Attach(
 			shader.vertex,
-			shader.fragment
+			shader.fragments
 		);
 
 		auto program = &shaders.emplace(std::make_pair(hash, std::move(shader))).first->second;
 
 		// Assume the first shader should be the current one
 		if (!currentShader) currentShader = program;
+
+		return program;
+	}
+
+	void RemoveShader(std::uint32_t hash) {
+		shaders.erase(hash);
 	}
 
 	std::map<std::uint32_t, Shader>::iterator begin() {
@@ -62,6 +81,8 @@ public:
 
 		currentShader->program.Use();
 	}
+
+	const glm::mat4 &GetIdentity() const { return identity; }
 
 	void SetIdentity(glm::mat4 &&projection) { identity = std::move(projection); this->projection = identity; }
 	void SetProjection(glm::mat4 &&projection) { this->projection = std::move(projection); }
