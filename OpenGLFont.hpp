@@ -52,6 +52,8 @@ public:
 	bool SetFontSize(FT_UInt size);
 	void SetOutlineRadius(int radius);
 
+	const int GetOutlineRadius() const { return outlineRadius; }
+
 	void OnDestroy();
 
 	Bounds MeasureText(const std::string &text, float scale = 1.0f);
