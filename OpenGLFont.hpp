@@ -68,6 +68,8 @@ public:
 
 	void RenderCached(const std::unique_ptr<FramebufferObject> &framebuffer, glm::mat4 projection, Context &context);
 
+	const OpenGLFont::Bounds &GetEm() const { return em; }
+
 private:
 	struct Character {
 		Character() = delete;
@@ -115,5 +117,7 @@ private:
 	FT_Stroker stroker = nullptr;
 
 	int outlineRadius = 0;
+
+	Bounds em{ 0, 0, 0, 0 };
 };
 }

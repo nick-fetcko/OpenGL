@@ -131,6 +131,8 @@ inline bool OpenGLFont::LoadInitialCharacters() {
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
 
+	em = MeasureText("M");
+
 	return true;
 }
 
