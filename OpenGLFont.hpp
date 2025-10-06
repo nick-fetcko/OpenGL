@@ -41,7 +41,7 @@ public:
 
 		}
 
-		int x = 0, y = 0, width = 0, height = 0, renderedHeight = 0;
+		int x = 0, y = 0, width = 0, height = 0, renderedHeight = 0, overhang = 0;
 	};
 
 	bool OnInit(const std::vector<std::string> &fonts, FT_UInt size, int outline = 0);
@@ -119,6 +119,8 @@ private:
 	FT_Stroker stroker = nullptr;
 
 	int outlineRadius = 0;
+
+	int overhang = 0;
 
 	Bounds em{ 0, 0, 0, 0 };
 };

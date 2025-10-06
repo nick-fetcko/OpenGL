@@ -68,6 +68,10 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::s
 	// set texture options
 	texture.SetTexParameters();
 
+	// Find max overhang below the baseline
+	if (((*face)->glyph->metrics.height / 64.0 - (*face)->glyph->metrics.horiBearingY / 64.0) > overhang)
+		overhang = ((*face)->glyph->metrics.height / 64.0 - (*face)->glyph->metrics.horiBearingY / 64.0);
+
 	// now store character for later use
 	const auto &ret = characters.emplace(
 		c,
@@ -240,10 +244,8 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadMissingGlyph
 OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale) {
 	Bounds ret;
 
-	ret.height = (*faces.begin())->size->metrics.height >> 6;
-	ret.height -= GetDescender() / 2 + outlineRadius * 2;
-
-	int belowBaseline = 0;
+	ret.height = ((*faces.begin())->size->metrics.height >> 6) + outlineRadius * 2;
+	ret.height -= overhang / 2;
 
 	const auto converted = converter.from_bytes(text);
 
@@ -256,25 +258,26 @@ OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale)
 		if (ch == characters.end())
 			ch = LoadMissingGlyph(c);
 
-		ret.width += std::lround(ch->second.advance * scale);
+		ret.width += std::ceil(ch->second.advance * scale);
 
 		// Find max y bearing
-		if (ch->second.bearing.y * scale > ret.y)
-			ret.y = std::lround(ch->second.bearing.y * scale);
+		auto y = std::ceil(ch->second.metrics.horiBearingY * scale);
 
-		// Are any of our characters _below_ the baseline?
-		if (ch->second.bearing.y < 0) {
-			if ((ch->second.metrics.height - ch->second.metrics.horiBearingY) * scale > belowBaseline)
-				belowBaseline = (ch->second.metrics.height - ch->second.metrics.horiBearingY) * scale;
-		}
+		if (y > ret.y)
+			ret.y = y;
 
-		// Find max height
-		if ((ch->second.metrics.height + (ch->second.metrics.height - ch->second.metrics.horiBearingY)) * scale > ret.renderedHeight)
-			ret.renderedHeight = (ch->second.metrics.height + (ch->second.metrics.height - ch->second.metrics.horiBearingY)) * scale;
+		// Fid max height, taking bearing into consideration
+		if (auto height = std::ceil(ch->second.metrics.height * scale); height - y > ret.renderedHeight)
+			ret.renderedHeight = height - y;
+
+		// Find max overhang below the baseline, for vertical centering
+		if ((ch->second.metrics.height - ch->second.metrics.horiBearingY) * scale > ret.overhang)
+			ret.overhang = (ch->second.metrics.height - ch->second.metrics.horiBearingY) * scale;
 	}
 
+	ret.y += outlineRadius;
+	ret.renderedHeight += ret.y + outlineRadius;
 	ret.width += outlineRadius * 2;
-	ret.renderedHeight += outlineRadius * 3 + belowBaseline;
 
 	return ret;
 }
@@ -292,7 +295,14 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	glGetIntegerv(GL_VIEWPORT, oldViewport);
 	glViewport(0, 0, bounds.width, bounds.renderedHeight);
 	auto projection = glm::ortho(0.0f, static_cast<float>(bounds.width), 0.0f, static_cast<float>(bounds.renderedHeight));
-	projection = glm::translate(projection, glm::vec3(outlineRadius, outlineRadius + bounds.y, 0.0f));
+	projection = glm::translate(
+		projection, 
+		glm::vec3(
+			outlineRadius,
+			bounds.y,
+			0.0f
+		)
+	);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	RenderText(text, projection, color, context);
@@ -306,12 +316,12 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 }
 
 void OpenGLFont::RenderCached(const std::unique_ptr<FramebufferObject> &framebuffer, glm::mat4 projection, Context &context) {
-	context.Translate(-outlineRadius, -outlineRadius * 2, 0);
+	context.Translate(-outlineRadius, 0, 0);
 	context.Apply();
 
 	framebuffer->Draw(0, 0, context);
 
-	context.Translate(outlineRadius, outlineRadius * 2, 0);
+	context.Translate(outlineRadius, 0, 0);
 	context.Apply();
 }
 
