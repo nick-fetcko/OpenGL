@@ -85,14 +85,14 @@ void ShaderProgram::UniformMatrix4fv(const std::string &uniform, GLsizei count, 
 	);
 }
 
-void ShaderProgram::Uniform1f(const std::string &uniform, float x) {
+void ShaderProgram::Uniform1f(const std::string &uniform, float x) const {
 	glUniform1f(
 		GetCachedUniformLocation(uniform),
 		x
 	);
 }
 
-void ShaderProgram::Uniform2f(const std::string &uniform, float x, float y) {
+void ShaderProgram::Uniform2f(const std::string &uniform, float x, float y) const {
 	glUniform2f(
 		GetCachedUniformLocation(uniform),
 		x,
