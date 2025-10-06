@@ -56,6 +56,10 @@ public:
 		return program;
 	}
 
+	const Shader *GetShader(std::uint32_t hash) const {
+		return &shaders.at(hash);
+	}
+
 	void RemoveShader(std::uint32_t hash) {
 		shaders.erase(hash);
 	}
