@@ -6,6 +6,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
 
+add_subdirectory(MathCPP)
+
 set(_glad_dir
 	third_party/glad)
 
@@ -24,9 +26,9 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/third_party FILES
 
 find_package(glm CONFIG REQUIRED)
 
-add_library(OpenGL STATIC ${_glad_sources} Buffer.hpp Context.hpp Framebuffer.hpp OpenGLFont.cpp OpenGLFont.hpp OpenGLVector.cpp OpenGLVector.hpp Shader.hpp ShaderProgram.hpp ShaderProgram.cpp Size.hpp Texture.hpp VertexArray.hpp)
+add_library(OpenGL STATIC ${_glad_sources} Buffer.hpp Context.hpp Framebuffer.hpp FXAA.hpp OpenGLFont.cpp OpenGLFont.hpp OpenGLVector.cpp OpenGLVector.hpp Polyline.hpp Shader.hpp ShaderProgram.hpp ShaderProgram.cpp Size.hpp Texture.hpp VertexArray.hpp)
 set_target_properties(OpenGL PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> ${_glad_dir})
 target_compile_features(OpenGL PUBLIC cxx_std_17)
 target_compile_definitions(OpenGL PUBLIC _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(OpenGL PUBLIC Utils glm::glm)
+target_link_libraries(OpenGL PUBLIC Utils MathsCPP glm::glm)
