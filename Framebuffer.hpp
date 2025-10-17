@@ -7,6 +7,8 @@
 #include "Texture.hpp"
 #include "VertexArray.hpp"
 
+#define VALIDATE 0
+
 namespace Fetcko {
 
 #pragma pack (push, 1)
@@ -52,8 +54,10 @@ public:
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.GetHandle(), 0);
 		texture.Unbind();
 
+#if VALIDATE
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 			logger.LogError("Framebuffer not complete!");
+#endif
 
 		if constexpr (Multisampled) {
 			glGenFramebuffers(1, &multisampledHandle);
@@ -72,8 +76,10 @@ public:
 			glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, width, height);
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
 
+#if VALIDATE
 			if (auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER); status != GL_FRAMEBUFFER_COMPLETE)
 				logger.LogError("Multisampled framebuffer not complete! status = ", status);
+#endif
 		}
 
 		Unbind();
@@ -247,7 +253,7 @@ public:
 		return format == GL_RGBA ? rgba : rgb;
 	}
 
-private:
+protected:
 	inline void _Draw(GLfloat x, GLfloat y, Context &context) {
 		context.Translate(x, y, 0);
 		context.Apply();
