@@ -206,6 +206,7 @@ public:
 		}
 	}
 
+	template<bool LoadIdentity>
 	void Draw(Context &context) const {
 		vao->Bind();
 		eab->Bind();
@@ -213,7 +214,8 @@ public:
 		eab->Unbind();
 		vao->Unbind();
 
-		context.LoadIdentity();
+		if constexpr (LoadIdentity)
+			context.LoadIdentity();
 	}
 
 private:
