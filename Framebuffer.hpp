@@ -1,5 +1,7 @@
 #pragma once
 
+#include <lodepng.h>
+
 #include "Logger.hpp"
 
 #include "Buffer.hpp"
@@ -207,6 +209,11 @@ public:
 		outFile.write(reinterpret_cast<const char *>(&infoHeader), sizeof(BITMAPINFOHEADER));
 		outFile.write(reinterpret_cast<const char *>(rgb.data()), static_cast<GLsizei>(std::ceil(width * 3 / 4.0f) * 4) * height);
 		outFile.close();
+	}
+
+	void SaveAsPNG(const std::filesystem::path &path) {
+		auto pixels = GetBitmap();
+		lodepng::encode(path.u8string(), pixels, width, height);
 	}
 
 	const GLsizei &GetWidth() const { return width; }
