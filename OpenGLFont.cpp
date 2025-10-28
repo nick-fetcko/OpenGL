@@ -28,7 +28,7 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::s
 
 	// load character glyph 
 	if (FT_Load_Glyph(*face, index, FT_LOAD_DEFAULT)) {
-		logger.LogError("Failed to load Glyph");
+		LogError("Failed to load Glyph");
 		return characters.end();
 	}
 
@@ -142,7 +142,7 @@ inline bool OpenGLFont::LoadInitialCharacters() {
 
 bool OpenGLFont::OnInit(const std::vector<std::string> &fonts, FT_UInt size, int outline) {
 	if (FT_Init_FreeType(&ft)) {
-		logger.LogError("Could not init FreeType Library");
+		LogError("Could not init FreeType Library");
 		return false;
 	}
 
@@ -173,7 +173,7 @@ bool OpenGLFont::OnInit(const std::string &rootFont, FT_UInt size, int outline) 
 	}
 
 	if (fontFiles.empty()) {
-		logger.LogError("Could not find any font files with the root of '", rootFont, "'!");
+		LogError("Could not find any font files with the root of '", rootFont, "'!");
 		return false;
 	}
 
@@ -187,7 +187,7 @@ bool OpenGLFont::SetFontSize(FT_UInt size) {
 	for (const auto &[i, font] : Utils::Enumerate(fonts)) {
 		auto path = Utils::GetResource(font).u8string();
 		if (FT_New_Face(ft, path.c_str(), 0, &faces[i])) {
-			logger.LogError("Failed to load font ", font);
+			LogError("Failed to load font ", font);
 			return false;
 		}
 
@@ -348,7 +348,7 @@ void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::
 			projection
 		);
 
-		auto &ch = characters.find(c);
+		auto ch = characters.find(c);
 		if (ch == characters.end())
 			ch = LoadMissingGlyph(c);
 

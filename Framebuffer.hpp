@@ -58,7 +58,7 @@ public:
 
 #if VALIDATE
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-			logger.LogError("Framebuffer not complete!");
+			LogError("Framebuffer not complete!");
 #endif
 
 		if constexpr (Multisampled) {
@@ -80,7 +80,7 @@ public:
 
 #if VALIDATE
 			if (auto status = glCheckFramebufferStatus(GL_FRAMEBUFFER); status != GL_FRAMEBUFFER_COMPLETE)
-				logger.LogError("Multisampled framebuffer not complete! status = ", status);
+				LogError("Multisampled framebuffer not complete! status = ", status);
 #endif
 		}
 

@@ -21,16 +21,16 @@ public:
 	ShaderProgram &GetShaderProgram() { return currentShader->program; }
 
 	Shader *AddShader(
-		std::filesystem::path &vertex,
-		std::filesystem::path &fragment,
+		std::filesystem::path vertex,
+		std::filesystem::path fragment,
 		std::uint32_t hash
 	) {
 		return AddShader(vertex, std::vector<std::filesystem::path>{ fragment }, hash);
 	}
 
 	Shader *AddShader(
-		std::filesystem::path &vertex,
-		std::vector<std::filesystem::path> &fragments,
+		std::filesystem::path vertex,
+		std::vector<std::filesystem::path> fragments,
 		std::uint32_t hash
 	) {
 		Shader shader;

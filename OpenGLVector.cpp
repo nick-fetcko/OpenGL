@@ -56,11 +56,11 @@ bool OpenGLVector::Load(const std::filesystem::path &path, Size<float> size) {
 		}
 	}
 	catch (std::exception &e) {
-		logger.LogError("Could not load OBJ file due to ", e.what());
+		LogError("Could not load OBJ file due to ", e.what());
 		return false;
 	}
 
-	logger.LogDebug("Bounds = {", min, ", ", max, "}");
+	LogDebug("Bounds = {", min, ", ", max, "}");
 
 	// Find the absolute value of
 	// the lowest _negative_ values

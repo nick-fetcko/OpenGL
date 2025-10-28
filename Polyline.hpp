@@ -112,7 +112,7 @@ public:
 	void Loop() {
 		if constexpr (J == Join::Miter) {
 			if (lastPoints.back() != firstPoints.front()) {
-				logger.LogWarning("Last and first points don't match! Adding an additional point.");
+				LogWarning("Last and first points don't match! Adding an additional point.");
 				auto first = firstPoints[0];
 				AddPoint<J>(std::move(first));
 			}

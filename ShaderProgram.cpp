@@ -43,7 +43,7 @@ void ShaderProgram::Attach(
 		std::vector<char> infoLog(size);
 		glGetProgramInfoLog(handle, size, nullptr, infoLog.data());
 
-		logger.LogError("Shader linking failed:\n", std::string(infoLog.begin(), infoLog.end()));
+		LogError("Shader linking failed:\n", std::string(infoLog.begin(), infoLog.end()));
 	}
 }
 
