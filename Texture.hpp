@@ -42,6 +42,10 @@ public:
 		glBindTexture(E, 0);
 	}
 
+	template<
+		GLenum _E = E,
+		typename std::enable_if<_E == GL_TEXTURE_2D, bool> * = nullptr
+	>
 	void TexImage2D(GLsizei width, GLsizei height, const void *data, GLenum type = GL_UNSIGNED_BYTE) const {
 		glTexImage2D(
 			E,
@@ -49,6 +53,25 @@ public:
 			internalFormat,
 			width,
 			height,
+			0,
+			format,
+			type,
+			data
+		);
+	}
+
+	template<
+		GLenum _E = E,
+		typename std::enable_if<_E == GL_TEXTURE_3D, bool> * = nullptr
+	>
+	void TexImage3D(GLsizei width, GLsizei height, GLsizei depth, const void *data, GLenum type = GL_UNSIGNED_BYTE) const {
+		glTexImage3D(
+			E,
+			0,
+			internalFormat,
+			width,
+			height,
+			depth,
 			0,
 			format,
 			type,
@@ -92,5 +115,6 @@ private:
 };
 
 using Texture2D = Texture<GL_TEXTURE_2D>;
+using Texture3D = Texture<GL_TEXTURE_3D>;
 using MultisampledTexture2D = Texture<GL_TEXTURE_2D_MULTISAMPLE>;
 }
