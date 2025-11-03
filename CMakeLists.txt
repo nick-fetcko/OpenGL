@@ -44,7 +44,7 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/third_party FILES
 
 find_package(glm CONFIG REQUIRED)
 
-add_library(OpenGL STATIC ${_glad_sources} ${_lodepng_sources} Buffer.hpp Context.hpp Framebuffer.hpp OpenGLFont.cpp OpenGLFont.hpp OpenGLVector.cpp OpenGLVector.hpp Polyline.hpp Shader.hpp ShaderProgram.hpp ShaderProgram.cpp Size.hpp Texture.hpp VertexArray.hpp)
+add_library(OpenGL STATIC ${_glad_sources} ${_lodepng_sources} Buffer.hpp Context.hpp DXGI.hpp DXGI.cpp Framebuffer.hpp OpenGLFont.cpp OpenGLFont.hpp OpenGLVector.cpp OpenGLVector.hpp Polyline.hpp Shader.hpp ShaderProgram.hpp ShaderProgram.cpp Size.hpp Texture.hpp VertexArray.hpp)
 set_target_properties(OpenGL PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> ${_glad_dir} ${_lodepng_dir})
 target_compile_features(OpenGL PUBLIC cxx_std_17)
