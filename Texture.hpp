@@ -42,7 +42,7 @@ public:
 		glBindTexture(E, 0);
 	}
 
-	void TexImage2D(GLsizei width, GLsizei height, const void *data) const {
+	void TexImage2D(GLsizei width, GLsizei height, const void *data, GLenum type = GL_UNSIGNED_BYTE) const {
 		glTexImage2D(
 			E,
 			0,
@@ -51,7 +51,7 @@ public:
 			height,
 			0,
 			format,
-			GL_UNSIGNED_BYTE,
+			type,
 			data
 		);
 	}
