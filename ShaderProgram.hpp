@@ -46,6 +46,7 @@ public:
 
 	void UniformMatrix4fv(const std::string &uniform, GLsizei count, GLboolean transpose, const glm::mat4 &value) const;
 
+	void Uniform1i(const std::string &uniform, int i) const;
 	void Uniform1f(const std::string &uniform, float x) const;
 	void Uniform2f(const std::string &uniform, float x, float y) const;
 	void Uniform3f(const std::string &uniform, float x, float y, float z) const;
