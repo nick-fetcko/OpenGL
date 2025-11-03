@@ -2,6 +2,8 @@
 
 #include <lodepng.h>
 
+#include <glad/glad.h>
+
 #include "Logger.hpp"
 
 #include "Buffer.hpp"
@@ -135,6 +137,10 @@ public:
 		}
 	}
 
+	void SetDefaultFramebuffer(GLuint defaultFramebuffer) {
+		this->defaultFramebuffer = defaultFramebuffer;
+	}
+
 	void Bind() {
 		if constexpr (Multisampled)
 			glBindFramebuffer(GL_FRAMEBUFFER, multisampledHandle);
@@ -143,7 +149,7 @@ public:
 	}
 
 	void Unbind() {
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
 	}
 
 	template<
@@ -168,6 +174,7 @@ public:
 			GL_COLOR_BUFFER_BIT,
 			GL_LINEAR
 		);
+
 		Unbind();
 	}
 
@@ -286,6 +293,8 @@ protected:
 	GLuint multisampledHandle = 0;
 	std::unique_ptr<MultisampledTexture2D> multisampledTexture;
 	GLuint depthBuffer = 0;
+
+	GLuint defaultFramebuffer = 0;
 };
 
 using FramebufferObject = Framebuffer<false>;
