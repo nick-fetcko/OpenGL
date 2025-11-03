@@ -132,8 +132,8 @@ private:
 	std::map<std::uint32_t, Shader> shaders;
 	Shader *currentShader = nullptr;
 
-	glm::mat4 identity;
-	glm::mat4 projection;
+	glm::mat4 identity{ 0.0f };
+	glm::mat4 projection{ 0.0f };
 
 	float yOffset = 0.0f;
 };
