@@ -22,6 +22,11 @@ set(_glad_sources
 	${_glad_dir}/glad/glad.c
 	)
 
+if (WIN32)
+	list(APPEND _glad_sources ${_glad_dir}/glad/glad_wgl.c)
+	list(APPEND _glad_headers ${_glad_dir}/glad/glad_wgl.h)
+endif()
+
 set(_lodepng_headers
 	${_lodepng_dir}/lodepng.h
 )
