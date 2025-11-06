@@ -286,6 +286,7 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	const auto bounds = MeasureText(text, 1.0f);
 
 	auto framebuffer = std::make_unique<FramebufferObject>(bounds.width, bounds.renderedHeight);
+	framebuffer->SetDefaultFramebuffer(defaultFramebuffer);
 	framebuffer->Bind();
 	GLint oldViewport[4];
 

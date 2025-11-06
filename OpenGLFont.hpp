@@ -72,6 +72,8 @@ public:
 
 	const OpenGLFont::Bounds &GetEm() const { return em; }
 
+	void SetDefaultFramebuffer(GLuint defaultFramebuffer) { this->defaultFramebuffer = defaultFramebuffer; }
+
 private:
 	struct Character {
 		Character() = delete;
@@ -123,5 +125,7 @@ private:
 	int overhang = 0;
 
 	Bounds em{ 0, 0, 0, 0 };
+
+	GLuint defaultFramebuffer = 0;
 };
 }
