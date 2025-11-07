@@ -126,6 +126,8 @@ public:
 		multisampledTexture = std::move(other.multisampledTexture);
 		depthBuffer = other.depthBuffer;
 		other.depthBuffer = 0;
+
+		defaultFramebuffer = other.defaultFramebuffer;
 	}
 
 	virtual ~Framebuffer() {
@@ -164,7 +166,9 @@ public:
 		multisampledTexture->Unbind();
 	}
 
-	inline void Blit(Framebuffer *target = nullptr) {
+	inline void Blit(Context &context, Framebuffer *target = nullptr) {
+		// glBlitFramebuffer is SLOW
+		/*
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledHandle);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target ? target->multisampledHandle : handle);
 
@@ -176,11 +180,36 @@ public:
 		);
 
 		Unbind();
+		*/
+
+		glBindFramebuffer(GL_FRAMEBUFFER, target ? target->multisampledHandle : handle);
+
+		multisampledTexture->Bind();
+
+		if (!target) {
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
+		}
+
+		context.With("blit"_hash, [this, &context, target](Context::Shader &shader) {
+			shader.program.UniformMatrix4fv("projection"_hash, 1, GL_FALSE, context.GetIdentity());
+			shader.program.Uniform2f("screenSize"_hash, width, height);
+
+			vao.Bind();
+			eab.Bind();
+			eab.DrawElements(GL_TRIANGLES);
+			eab.Unbind();
+			vao.Unbind();
+		});
+
+		multisampledTexture->Unbind();
+
+		Unbind();
 	}
 
 	void Draw(GLfloat x, GLfloat y, Context &context, Framebuffer *target = nullptr) {
 		if constexpr (Multisampled) {
-			Blit(target);
+			Blit(context, target);
 
 			if (target)
 				return;
