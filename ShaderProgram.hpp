@@ -5,6 +5,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "Hash.hpp"
+
 #include "Shader.hpp"
 
 namespace Fetcko {
@@ -27,12 +29,14 @@ public:
 	const void UniformBlockBinding(const std::string_view &uniformBlock);
 
 	template<bool Cached>
-	const GLuint GetUniformLocation(const std::string &uniform) {
+	constexpr const GLuint GetUniformLocation(const std::string &uniform) {
 		if constexpr (Cached) {
-			if (auto iter = uniforms.find(uniform); iter != uniforms.end())
+			constexpr auto hash = hash_32_fnv1a_const(uniform.c_str(), uniform.size());
+
+			if (auto iter = uniforms.find(hash); iter != uniforms.end())
 				return iter->second;
 
-			return CacheUniformLocation(uniform);
+			return CacheUniformLocation(hash);
 		}
 
 		return glGetUniformLocation(handle, uniform.c_str());
@@ -42,15 +46,15 @@ public:
 
 	// Differing the function name (instead of just the signature)
 	// to make the distinction more obvious
-	const GLuint GetCachedUniformLocation(const std::string &uniform) const noexcept;
+	const GLuint GetCachedUniformLocation(uint32_t hash) const noexcept;
 
-	void UniformMatrix4fv(const std::string &uniform, GLsizei count, GLboolean transpose, const glm::mat4 &value) const;
+	void UniformMatrix4fv(uint32_t hash, GLsizei count, GLboolean transpose, const glm::mat4 &value) const;
 
-	void Uniform1i(const std::string &uniform, int i) const;
-	void Uniform1f(const std::string &uniform, float x) const;
-	void Uniform2f(const std::string &uniform, float x, float y) const;
-	void Uniform3f(const std::string &uniform, float x, float y, float z) const;
-	void Uniform4f(const std::string &uniform, float x, float y, float z, float w) const;
+	void Uniform1i(uint32_t hash, int i) const;
+	void Uniform1f(uint32_t hash, float x) const;
+	void Uniform2f(uint32_t hash, float x, float y) const;
+	void Uniform3f(uint32_t hash, float x, float y, float z) const;
+	void Uniform4f(uint32_t hash, float x, float y, float z, float w) const;
 
 private:
 	GLuint handle = 0;
@@ -58,6 +62,6 @@ private:
 	std::optional<std::reference_wrapper<const VertexShader>> vertexShader = std::nullopt;
 	std::optional<std::reference_wrapper<const std::vector<FragmentShader>>> fragmentShaders = std::nullopt;
 
-	std::map<std::string, GLuint> uniforms;
+	std::map<uint32_t, GLuint> uniforms;
 };
 }

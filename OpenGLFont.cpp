@@ -343,7 +343,7 @@ void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::
 		if (c == '\0') break;
 
 		context.GetShaderProgram().UniformMatrix4fv(
-			"projection",
+			"projection"_hash,
 			1,
 			GL_FALSE,
 			projection

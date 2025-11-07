@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <vector>
 
+#include "Hash.hpp"
+
 #include "Logger.hpp"
 #include "Shader.hpp"
 #include "ShaderProgram.hpp"
@@ -113,11 +115,11 @@ public:
 		);
 	}
 	inline void Color(float r, float g, float b, float a) {
-		currentShader->program.Uniform4f("color", r, g, b, a);
+		currentShader->program.Uniform4f("color"_hash, r, g, b, a);
 	}
 
 	inline void Apply() {
-		currentShader->program.UniformMatrix4fv("projection", 1, GL_FALSE, projection);
+		currentShader->program.UniformMatrix4fv("projection"_hash, 1, GL_FALSE, projection);
 	}
 
 	inline void LoadIdentity() { 

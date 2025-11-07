@@ -62,9 +62,11 @@ const void ShaderProgram::UniformBlockBinding(const std::string_view &uniformBlo
 }
 
 const GLuint ShaderProgram::CacheUniformLocation(const std::string &uniform) {
+	auto hash = hash_32_fnv1a_const(uniform.c_str(), uniform.size());
+
 	return uniforms.emplace(
 		std::make_pair(
-			uniform,
+			hash,
 			glGetUniformLocation(handle, uniform.c_str())
 		)
 	).first->second;
@@ -72,53 +74,53 @@ const GLuint ShaderProgram::CacheUniformLocation(const std::string &uniform) {
 
 // Differing the function name (instead of just the signature)
 // to make the distinction more obvious
-const GLuint ShaderProgram::GetCachedUniformLocation(const std::string &uniform) const noexcept {
-	return uniforms.at(uniform);
+const GLuint ShaderProgram::GetCachedUniformLocation(uint32_t hash) const noexcept {
+	return uniforms.at(hash);
 }
 
-void ShaderProgram::UniformMatrix4fv(const std::string &uniform, GLsizei count, GLboolean transpose, const glm::mat4 &value) const {
+void ShaderProgram::UniformMatrix4fv(uint32_t hash, GLsizei count, GLboolean transpose, const glm::mat4 &value) const {
 	glUniformMatrix4fv(
-		GetCachedUniformLocation(uniform),
+		GetCachedUniformLocation(hash),
 		count,
 		transpose,
 		glm::value_ptr(value)
 	);
 }
 
-void ShaderProgram::Uniform1i(const std::string &uniform, int i) const {
+void ShaderProgram::Uniform1i(uint32_t hash, int i) const {
 	glUniform1i(
-		GetCachedUniformLocation(uniform),
+		GetCachedUniformLocation(hash),
 		i
 	);
 }
 
-void ShaderProgram::Uniform1f(const std::string &uniform, float x) const {
+void ShaderProgram::Uniform1f(uint32_t hash, float x) const {
 	glUniform1f(
-		GetCachedUniformLocation(uniform),
+		GetCachedUniformLocation(hash),
 		x
 	);
 }
 
-void ShaderProgram::Uniform2f(const std::string &uniform, float x, float y) const {
+void ShaderProgram::Uniform2f(uint32_t hash, float x, float y) const {
 	glUniform2f(
-		GetCachedUniformLocation(uniform),
+		GetCachedUniformLocation(hash),
 		x,
 		y
 	);
 }
 
-void ShaderProgram::Uniform3f(const std::string &uniform, float x, float y, float z) const {
+void ShaderProgram::Uniform3f(uint32_t hash, float x, float y, float z) const {
 	glUniform3f(
-		GetCachedUniformLocation(uniform),
+		GetCachedUniformLocation(hash),
 		x,
 		y,
 		z
 	);
 }
 
-void ShaderProgram::Uniform4f(const std::string &uniform, float x, float y, float z, float w) const {
+void ShaderProgram::Uniform4f(uint32_t hash, float x, float y, float z, float w) const {
 	glUniform4f(
-		GetCachedUniformLocation(uniform),
+		GetCachedUniformLocation(hash),
 		x,
 		y,
 		z,
