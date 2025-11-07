@@ -15,6 +15,7 @@ namespace Fetcko {
 // Derived from https://gist.github.com/mmozeiko/c99f9891ce723234854f0919bfd88eae
 class DXGI : public LoggableClass {
 public:
+	DXGI(bool depthBuffer = true);
 	bool OnInit(HWND hwnd, int adapterIndex, int width, int height);
 	bool OnResize(int width, int height);
 	void OnDestroy();
@@ -26,6 +27,8 @@ public:
 	const GLuint GetFramebuffer() const { return fbuf; }
 
 private:
+	bool depthBuffer = true;
+
 	ID3D11DeviceContext *deviceContext = nullptr;
 	IDXGISwapChain1 *swapChain = nullptr;
 	GLuint colorRbuf = 0;

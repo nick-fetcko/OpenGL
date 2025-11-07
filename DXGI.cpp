@@ -4,6 +4,11 @@
 #include <glad/glad_wgl.h>
 
 namespace Fetcko {
+DXGI::DXGI(bool depthBuffer) :
+	depthBuffer(depthBuffer){
+
+}
+
 bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
 	IDXGIFactory6 *factory = nullptr;
 	bool success = false;
@@ -102,7 +107,8 @@ bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
 	}
 
 	glGenRenderbuffers(1, &colorRbuf);
-	glGenRenderbuffers(1, &dsRbuf);
+	if (depthBuffer)
+		glGenRenderbuffers(1, &dsRbuf);
 	glGenFramebuffers(1, &fbuf);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbuf);
 
@@ -137,7 +143,8 @@ void DXGI::OnDestroy() {
 
 	glDeleteFramebuffers(1, &fbuf);
 	glDeleteRenderbuffers(1, &colorRbuf);
-	glDeleteRenderbuffers(1, &dsRbuf);
+	if (depthBuffer)
+		glDeleteRenderbuffers(1, &dsRbuf);
 
 	wglDXCloseDeviceNV(dxDevice);
 
@@ -165,7 +172,7 @@ bool DXGI::OnLoop() {
 	// this can be cached from previous frame if size has not changed
 	// or you could skip depth buffer completely (just use GL only depth renderbuffer)
 	ID3D11Texture2D *dsBuffer;
-	{
+	if (depthBuffer) {
 		D3D11_TEXTURE2D_DESC desc;
 		colorBuffer->GetDesc(&desc);
 		desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
@@ -203,36 +210,46 @@ bool DXGI::OnLoop() {
 		return false;
 	}
 
-	if (dxDepthStencil = wglDXRegisterObjectNV(dxDevice, dsBuffer, dsRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxDepthStencil) {
-		LogError("Could not regixter stencil buffer!");
-		return false;
+	if (depthBuffer) {
+		if (dxDepthStencil = wglDXRegisterObjectNV(dxDevice, dsBuffer, dsRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxDepthStencil) {
+			LogError("Could not regixter stencil buffer!");
+			return false;
+		}
 	}
 
 	colorBuffer->Release();
-	dsBuffer->Release();
+
+	if (depthBuffer)
+		dsBuffer->Release();
 
 	dxObjects[0] = dxColor;
-	dxObjects[1] = dxDepthStencil;
 
-	wglDXLockObjectsNV(dxDevice, 2, dxObjects);
+	if (depthBuffer)
+		dxObjects[1] = dxDepthStencil;
+
+	wglDXLockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbuf);
 
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRbuf);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, dsRbuf);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, dsRbuf);
+	if (depthBuffer) {
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, dsRbuf);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, dsRbuf);
+	}
 
 	return true;
 }
 
 void DXGI::SwapBuffers() {
-	wglDXUnlockObjectsNV(dxDevice, 2, dxObjects);
+	wglDXUnlockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
 	wglDXUnregisterObjectNV(dxDevice, dxColor);
-	wglDXUnregisterObjectNV(dxDevice, dxDepthStencil);
+	if (depthBuffer)
+		wglDXUnregisterObjectNV(dxDevice, dxDepthStencil);
 
 	colorView->Release();
-	dsView->Release();
+	if (depthBuffer)
+		dsView->Release();
 
 	swapChain->Present(1, 0);
 }
