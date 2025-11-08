@@ -12,7 +12,7 @@
 using namespace MathsCPP;
 
 namespace Fetcko {
-class Cube {
+class Cube : public LoggableClass {
 public:
 	Cube() : texture(GL_RGB, GL_RGB) {
 
@@ -62,6 +62,8 @@ public:
 		texture.Unbind();
 
 		delete[] table;
+
+		LogDebug("Loaded .cube of size ", tableDimensionSize, " from ", path);
 	}
 
 	void Bind() const { texture.Bind(); }
