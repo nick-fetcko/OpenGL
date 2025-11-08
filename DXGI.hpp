@@ -27,6 +27,9 @@ public:
 	const GLuint GetFramebuffer() const { return fbuf; }
 
 private:
+	inline bool Load();
+	inline void Unload();
+
 	bool depthBuffer = true;
 
 	ID3D11DeviceContext *deviceContext = nullptr;
@@ -36,10 +39,13 @@ private:
 	GLuint fbuf = 0;
 	ID3D11RenderTargetView *colorView = nullptr;
 	ID3D11DepthStencilView *dsView = nullptr;
-	HANDLE dxColor = nullptr, dxDepthStencil = nullptr;
 	HANDLE dxDevice = nullptr;
 	HANDLE dxObjects[2] = { nullptr };
 	ID3D11Device *device = nullptr;
+
+	ID3D11Texture2D *colorBuffer = nullptr;
+	ID3D11Texture2D *dsBuffer = nullptr;
+	HRESULT hr = S_OK;
 };
 }
 #endif

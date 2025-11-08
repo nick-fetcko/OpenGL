@@ -60,7 +60,10 @@ bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
 		adapter,
 		D3D_DRIVER_TYPE_UNKNOWN,
 		nullptr,
-		D3D11_CREATE_DEVICE_DEBUG | D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+#ifdef _DEBUG
+		D3D11_CREATE_DEVICE_DEBUG |
+#endif
+		D3D11_CREATE_DEVICE_BGRA_SUPPORT,
 		nullptr,
 		0,
 		D3D11_SDK_VERSION,
@@ -118,6 +121,8 @@ bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
 bool DXGI::OnResize(int width, int height) {
 	deviceContext->ClearState();
 
+	Unload();
+
 	if (auto hr = swapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0); hr != S_OK) {
 		LogError("Could not resize buffers: ", std::hex, hr);
 		return false;
@@ -135,10 +140,12 @@ bool DXGI::OnResize(int width, int height) {
 
 	deviceContext->RSSetViewports(1, &view);
 
-	return true;
+	return Load();
 }
 
 void DXGI::OnDestroy() {
+	Unload();
+
 	deviceContext->ClearState();
 
 	glDeleteFramebuffers(1, &fbuf);
@@ -154,24 +161,21 @@ void DXGI::OnDestroy() {
 	swapChain->Release();
 }
 
-bool DXGI::OnLoop() {
-	ID3D11Texture2D *colorBuffer = nullptr;
-	HRESULT hr = S_OK;
-	
+inline bool DXGI::Load() {
 	if (hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&colorBuffer)); hr != S_OK) {
 		LogError("Could not get colorBuffer: ", std::hex, hr);
+		colorBuffer = nullptr;
 		return false;
-	} else if (colorBuffer) {
-		if (hr = device->CreateRenderTargetView(colorBuffer, NULL, &colorView); hr != S_OK) {
-			LogError("Could not create render target view: ", std::hex, hr);
-			return false;
-		}
+	}
+
+	if (hr = device->CreateRenderTargetView(colorBuffer, NULL, &colorView); hr != S_OK) {
+		LogError("Could not create render target view: ", std::hex, hr);
+		return false;
 	}
 
 	// create depth-stencil view based on size from color buffer
 	// this can be cached from previous frame if size has not changed
 	// or you could skip depth buffer completely (just use GL only depth renderbuffer)
-	ID3D11Texture2D *dsBuffer;
 	if (depthBuffer) {
 		D3D11_TEXTURE2D_DESC desc;
 		colorBuffer->GetDesc(&desc);
@@ -190,7 +194,27 @@ bool DXGI::OnLoop() {
 		}
 	}
 
-	if (dxColor = wglDXRegisterObjectNV(dxDevice, colorBuffer, colorRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxColor) {
+	return true;
+}
+
+inline void DXGI::Unload() {
+	if (colorBuffer)
+		colorBuffer->Release();
+	if (colorView)
+		colorView->Release();
+	if (dsBuffer)
+		dsBuffer->Release();
+	if (dsView)
+		dsView->Release();
+
+	colorBuffer = nullptr;
+	colorView = nullptr;
+	dsBuffer = nullptr;
+	dsView = nullptr;
+}
+
+bool DXGI::OnLoop() {
+	if (dxObjects[0] = wglDXRegisterObjectNV(dxDevice, colorBuffer, colorRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxObjects[0]) {
 		auto error = GetLastError() & 0x00FF;
 		switch (error) {
 		case ERROR_INVALID_HANDLE:
@@ -211,21 +235,11 @@ bool DXGI::OnLoop() {
 	}
 
 	if (depthBuffer) {
-		if (dxDepthStencil = wglDXRegisterObjectNV(dxDevice, dsBuffer, dsRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxDepthStencil) {
-			LogError("Could not regixter stencil buffer!");
+		if (dxObjects[1] = wglDXRegisterObjectNV(dxDevice, dsBuffer, dsRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxObjects[1]) {
+			LogError("Could not register stencil buffer!");
 			return false;
 		}
 	}
-
-	colorBuffer->Release();
-
-	if (depthBuffer)
-		dsBuffer->Release();
-
-	dxObjects[0] = dxColor;
-
-	if (depthBuffer)
-		dxObjects[1] = dxDepthStencil;
 
 	wglDXLockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
@@ -243,13 +257,9 @@ bool DXGI::OnLoop() {
 void DXGI::SwapBuffers() {
 	wglDXUnlockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
-	wglDXUnregisterObjectNV(dxDevice, dxColor);
+	wglDXUnregisterObjectNV(dxDevice, dxObjects[0]);
 	if (depthBuffer)
-		wglDXUnregisterObjectNV(dxDevice, dxDepthStencil);
-
-	colorView->Release();
-	if (depthBuffer)
-		dsView->Release();
+		wglDXUnregisterObjectNV(dxDevice, dxObjects[1]);
 
 	swapChain->Present(1, 0);
 }
