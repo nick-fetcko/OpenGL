@@ -26,6 +26,7 @@ public:
 
 	const GLuint GetFramebuffer() const { return fbuf; }
 
+	IDXGISwapChain1 *GetSwapChain() { return swapChain; }
 private:
 	inline bool Load();
 	inline void Unload();
