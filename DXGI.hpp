@@ -1,6 +1,9 @@
 #ifdef WIN32
 #pragma once
 
+#include <optional>
+#include <tuple>
+
 #include <glad/glad.h>
 
 #include <dxgi1_6.h>
@@ -16,7 +19,10 @@ namespace Fetcko {
 class DXGI : public LoggableClass {
 public:
 	DXGI(bool depthBuffer = true);
-	bool OnInit(HWND hwnd, int adapterIndex, int width, int height);
+	virtual ~DXGI();
+
+	bool OnInit(int adapterIndex);
+	bool OnCreate(HWND hwnd, int width, int height);
 	bool OnResize(int width, int height);
 	void OnDestroy();
 	bool OnLoop();
@@ -27,11 +33,17 @@ public:
 	const GLuint GetFramebuffer() const { return fbuf; }
 
 	IDXGISwapChain1 *GetSwapChain() { return swapChain; }
+
+	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex);
 private:
 	inline bool Load();
 	inline void Unload();
 
 	bool depthBuffer = true;
+
+	IDXGIFactory6 *factory = nullptr;
+	IDXGIAdapter1 *adapter = nullptr;
+	IDXGIOutput *output = nullptr;
 
 	ID3D11DeviceContext *deviceContext = nullptr;
 	IDXGISwapChain1 *swapChain = nullptr;
@@ -47,6 +59,8 @@ private:
 	ID3D11Texture2D *colorBuffer = nullptr;
 	ID3D11Texture2D *dsBuffer = nullptr;
 	HRESULT hr = S_OK;
+
+	int lastOutputIndex = -1;
 };
 }
 #endif

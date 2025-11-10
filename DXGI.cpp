@@ -9,12 +9,111 @@ DXGI::DXGI(bool depthBuffer) :
 
 }
 
-bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
-	IDXGIFactory6 *factory = nullptr;
-	bool success = false;
-	IDXGIAdapter1 *adapter = nullptr;
-	HRESULT hr = S_OK;
+DXGI::~DXGI() {
+	if (factory)
+		factory->Release();
+	if (adapter)
+		adapter->Release();
+	if (output)
+		output->Release();
+}
 
+std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputIndex) {
+	if (lastOutputIndex == outputIndex) return std::nullopt;
+
+	lastOutputIndex = outputIndex;
+
+	if (hr = adapter->EnumOutputs(outputIndex, &output); hr != S_OK) {
+		LogError("IDXGIAdapter::EnumOutputs() failed: ", std::hex, hr);
+		return std::nullopt;
+	}
+
+	//if (factory->IsCurrent()) return std::nullopt;
+
+	IDXGIOutput6 *output6 = nullptr;
+
+	if (hr = output->QueryInterface(__uuidof(IDXGIOutput6), (void **)&output6); hr == S_OK) {
+		DXGI_OUTPUT_DESC1 desc;
+		output6->GetDesc1(&desc);
+		auto maxLuminance = desc.MaxLuminance / 80.0f;
+		output6->Release();
+
+		std::vector<DISPLAYCONFIG_PATH_INFO> paths;
+		std::vector<DISPLAYCONFIG_MODE_INFO> modes;
+		UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
+		LONG result = ERROR_SUCCESS;
+
+		do {
+			// Determine how many path and mode structures to allocate
+			UINT32 pathCount, modeCount;
+			result = GetDisplayConfigBufferSizes(flags, &pathCount, &modeCount);
+
+			if (result != ERROR_SUCCESS)
+				return std::nullopt;
+
+			// Allocate the path and mode arrays
+			paths.resize(pathCount);
+			modes.resize(modeCount);
+
+			// Get all active paths and their modes
+			result = QueryDisplayConfig(flags, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
+
+			// The function may have returned fewer paths/modes than estimated
+			paths.resize(pathCount);
+			modes.resize(modeCount);
+
+			// It's possible that between the call to GetDisplayConfigBufferSizes and QueryDisplayConfig
+			// that the display state changed, so loop on the case of ERROR_INSUFFICIENT_BUFFER.
+		} while (result == ERROR_INSUFFICIENT_BUFFER);
+
+		if (result != ERROR_SUCCESS)
+			return std::nullopt;
+
+		// For each active path
+		for (auto &path : paths) {
+			// Find the source device name
+			DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName = {};
+			sourceName.header.adapterId = path.sourceInfo.adapterId;
+			sourceName.header.id = path.sourceInfo.id;
+			sourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+			sourceName.header.size = sizeof(sourceName);
+
+			result = DisplayConfigGetDeviceInfo(&sourceName.header);
+
+			if (result != ERROR_SUCCESS)
+				return std::nullopt;
+
+			// Found our monitor
+			if (!wcsncmp(sourceName.viewGdiDeviceName, desc.DeviceName, std::max(wcslen(sourceName.viewGdiDeviceName), wcslen(desc.DeviceName)))) {
+				DISPLAYCONFIG_SDR_WHITE_LEVEL sdrWhiteLevel = {};
+
+				sdrWhiteLevel.header.adapterId = path.targetInfo.adapterId;
+				sdrWhiteLevel.header.id = path.targetInfo.id;
+				sdrWhiteLevel.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
+				sdrWhiteLevel.header.size = sizeof(sdrWhiteLevel);
+
+				result = DisplayConfigGetDeviceInfo(&sdrWhiteLevel.header);
+
+				if (result != ERROR_SUCCESS)
+					return std::nullopt;
+
+				return std::tuple<bool, float, float>{
+					// Treat all P2020 displays as HDR and all P709 displays as SDR
+					desc.ColorSpace >= DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P2020 && desc.ColorSpace <= DXGI_COLOR_SPACE_YCBCR_STUDIO_G24_TOPLEFT_P2020,
+					sdrWhiteLevel.SDRWhiteLevel / 1000.0f,
+					maxLuminance / (sdrWhiteLevel.SDRWhiteLevel / 1000.0f)
+				};
+			}
+		}
+	} else {
+		LogError("Could not query output interface: ", std::hex, hr);
+		return std::nullopt;
+	}
+
+	return std::nullopt;
+}
+
+bool DXGI::OnInit(int adapterIndex) {
 	if (hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(IDXGIFactory6), (void **)&factory); hr != S_OK) {
 		LogError("Could not create DXGIFactory2!");
 		return false;
@@ -37,25 +136,10 @@ bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
 		return false;
 	}
 
-	IDXGIOutput *output = nullptr;
+	return true;
+}
 
-	if (hr = adapter->EnumOutputs(0, &output); hr != S_OK) {
-		LogError("IDXGIAdapter::EnumOutputs() failed: ", std::hex, hr);
-		return false;
-	}
-
-	IDXGIOutput6 *output6 = nullptr;
-	
-	if (hr = output->QueryInterface(__uuidof(IDXGIOutput6), (void **)&output6); hr == S_OK) {
-		// Use output6...
-		DXGI_OUTPUT_DESC1 desc;
-		output6->GetDesc1(&desc);
-		output6->Release();
-	} else {
-		LogError("Could not query output interface: ", std::hex, hr);
-		return false;
-	}
-
+bool DXGI::OnCreate(HWND hwnd, int width, int height) {
 	hr = D3D11CreateDevice(
 		adapter,
 		D3D_DRIVER_TYPE_UNKNOWN,
@@ -109,13 +193,13 @@ bool DXGI::OnInit(HWND hwnd, int adapterIndex, int width, int height) {
 		return false;
 	}
 
+	swapChain->GetDesc1(&swapChainDesc);
+
 	glGenRenderbuffers(1, &colorRbuf);
 	if (depthBuffer)
 		glGenRenderbuffers(1, &dsRbuf);
 	glGenFramebuffers(1, &fbuf);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbuf);
-
-	return true;
 }
 
 bool DXGI::OnResize(int width, int height) {
@@ -146,6 +230,8 @@ bool DXGI::OnResize(int width, int height) {
 void DXGI::OnDestroy() {
 	Unload();
 
+	swapChain->Release();
+
 	deviceContext->ClearState();
 
 	glDeleteFramebuffers(1, &fbuf);
@@ -153,12 +239,21 @@ void DXGI::OnDestroy() {
 	if (depthBuffer)
 		glDeleteRenderbuffers(1, &dsRbuf);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	wglDXCloseDeviceNV(dxDevice);
 
 	deviceContext->ClearState();
-	deviceContext->Release();
+	ID3D11DeviceContext *immediateContext;
+	device->GetImmediateContext(&immediateContext);
+	immediateContext->ClearState();
+	immediateContext->Flush();
+	immediateContext->Release();
+
+	if (immediateContext != deviceContext)
+		deviceContext->Release();
+
 	device->Release();
-	swapChain->Release();
 }
 
 inline bool DXGI::Load() {
