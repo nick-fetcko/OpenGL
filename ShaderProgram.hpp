@@ -31,12 +31,12 @@ public:
 	template<bool Cached>
 	constexpr const GLuint GetUniformLocation(const std::string &uniform) {
 		if constexpr (Cached) {
-			constexpr auto hash = hash_32_fnv1a_const(uniform.c_str(), uniform.size());
+			const auto hash = hash_32_fnv1a_const(uniform.c_str(), uniform.size());
 
 			if (auto iter = uniforms.find(hash); iter != uniforms.end())
 				return iter->second;
 
-			return CacheUniformLocation(hash);
+			return CacheUniformLocation(uniform);
 		}
 
 		return glGetUniformLocation(handle, uniform.c_str());
