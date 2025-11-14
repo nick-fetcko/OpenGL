@@ -197,8 +197,7 @@ bool OpenGLFont::SetFontSize(FT_UInt size) {
 	// Flush any characters we have
 	characters.clear();
 
-	// Update our em measurement
-	em = MeasureText("M");
+	LoadInitialCharacters();
 
 	return true;
 }
