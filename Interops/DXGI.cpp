@@ -113,13 +113,13 @@ std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputI
 	return std::nullopt;
 }
 
-bool DXGI::OnInit(int adapterIndex) {
+bool DXGI::OnInit(const InitArgs &args) {
 	if (hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(IDXGIFactory6), (void **)&factory); hr != S_OK) {
 		LogError("Could not create DXGIFactory2!");
 		return false;
 	}
 
-	if (hr = factory->EnumAdapters1(adapterIndex, &adapter); hr != S_OK) {
+	if (hr = factory->EnumAdapters1(args.adapterIndex, &adapter); hr != S_OK) {
 		LogError("IDXGIFactory::EnumAdapters1() failed: ", std::hex, hr);
 		return false;
 	}
@@ -198,8 +198,10 @@ bool DXGI::OnCreate(HWND hwnd, int width, int height) {
 	glGenRenderbuffers(1, &colorRbuf);
 	if (depthBuffer)
 		glGenRenderbuffers(1, &dsRbuf);
-	glGenFramebuffers(1, &fbuf);
-	glBindFramebuffer(GL_FRAMEBUFFER, fbuf);
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	return true;
 }
 
 bool DXGI::OnResize(int width, int height) {
@@ -234,7 +236,7 @@ void DXGI::OnDestroy() {
 
 	deviceContext->ClearState();
 
-	glDeleteFramebuffers(1, &fbuf);
+	glDeleteFramebuffers(1, &fbo);
 	glDeleteRenderbuffers(1, &colorRbuf);
 	if (depthBuffer)
 		glDeleteRenderbuffers(1, &dsRbuf);
@@ -338,7 +340,7 @@ bool DXGI::OnLoop() {
 
 	wglDXLockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, fbuf);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRbuf);
 	if (depthBuffer) {
@@ -349,7 +351,7 @@ bool DXGI::OnLoop() {
 	return true;
 }
 
-void DXGI::SwapBuffers() {
+bool DXGI::SwapBuffers() {
 	wglDXUnlockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
 	wglDXUnregisterObjectNV(dxDevice, dxObjects[0]);
@@ -357,10 +359,12 @@ void DXGI::SwapBuffers() {
 		wglDXUnregisterObjectNV(dxDevice, dxObjects[1]);
 
 	swapChain->Present(1, 0);
+
+	return true;
 }
 
 void DXGI::Bind() {
-	glBindFramebuffer(GL_FRAMEBUFFER, fbuf);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 }
 }
 #endif

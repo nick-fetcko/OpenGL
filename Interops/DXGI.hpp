@@ -12,29 +12,30 @@
 #pragma comment (lib, "dxgi.lib")
 #pragma comment (lib, "d3d11.lib")
 
+#include "Interop.hpp"
+
 #include "Logger.hpp"
 
 namespace Fetcko {
 // Derived from https://gist.github.com/mmozeiko/c99f9891ce723234854f0919bfd88eae
-class DXGI : public LoggableClass {
+class DXGI : public Interop, public LoggableClass {
 public:
 	DXGI(bool depthBuffer = true);
 	virtual ~DXGI();
 
-	bool OnInit(int adapterIndex);
+	bool OnInit(const InitArgs &args) override;
 	bool OnCreate(HWND hwnd, int width, int height);
-	bool OnResize(int width, int height);
-	void OnDestroy();
-	bool OnLoop();
-	void SwapBuffers();
+	bool OnResize(int width, int height) override;
+	void OnDestroy() override;
+	bool OnLoop() override;
+	bool SwapBuffers() override;
 
 	void Bind();
-
-	const GLuint GetFramebuffer() const { return fbuf; }
 
 	IDXGISwapChain1 *GetSwapChain() { return swapChain; }
 
 	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex);
+
 private:
 	inline bool Load();
 	inline void Unload();
@@ -49,7 +50,7 @@ private:
 	IDXGISwapChain1 *swapChain = nullptr;
 	GLuint colorRbuf = 0;
 	GLuint dsRbuf = 0;
-	GLuint fbuf = 0;
+	
 	ID3D11RenderTargetView *colorView = nullptr;
 	ID3D11DepthStencilView *dsView = nullptr;
 	HANDLE dxDevice = nullptr;

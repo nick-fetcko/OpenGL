@@ -43,10 +43,35 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/third_party FILES
 	)
 
 find_package(glm CONFIG REQUIRED)
+find_package(Vulkan REQUIRED)
 
-add_library(OpenGL STATIC ${_glad_sources} ${_lodepng_sources} Buffer.hpp Context.hpp Cube.hpp DXGI.hpp DXGI.cpp Framebuffer.hpp OpenGLFont.cpp OpenGLFont.hpp OpenGLVector.cpp OpenGLVector.hpp Polyline.hpp Shader.hpp ShaderProgram.hpp ShaderProgram.cpp Size.hpp Texture.hpp VertexArray.hpp)
+add_library(
+	OpenGL STATIC 
+	${_glad_sources} 
+	${_lodepng_sources} 
+	Buffer.hpp 
+	Context.hpp 
+	Cube.hpp 
+	Framebuffer.hpp
+	OpenGLFont.cpp
+	OpenGLFont.hpp
+	OpenGLVector.cpp
+	OpenGLVector.hpp
+	Polyline.hpp
+	Shader.hpp
+	ShaderProgram.hpp
+	ShaderProgram.cpp
+	Size.hpp
+	Texture.hpp
+	VertexArray.hpp
+	Interops/Interop.hpp
+	Interops/DXGI.hpp 
+	Interops/DXGI.cpp
+	Interops/Vulkan.hpp
+	Interops/Vulkan.cpp
+)
 set_target_properties(OpenGL PROPERTIES LINKER_LANGUAGE CXX)
-target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> ${_glad_dir} ${_lodepng_dir})
+target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> ${_glad_dir} ${_lodepng_dir} Vulkan::Vulkan)
 target_compile_features(OpenGL PUBLIC cxx_std_17)
 target_compile_definitions(OpenGL PUBLIC _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(OpenGL PUBLIC Utils MathsCPP glm::glm)
