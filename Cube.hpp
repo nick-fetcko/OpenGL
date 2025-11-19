@@ -32,7 +32,7 @@ public:
 			auto split = Utils::Split(line, std::isspace);
 			if (split.size() == 2 && split[0] == "LUT_3D_SIZE") {
 				tableDimensionSize = std::stoi(split[1]);
-				table = new float[std::pow(tableDimensionSize, 3) * 3];
+				table = new float[static_cast<std::size_t>(std::pow(tableDimensionSize, 3) * 3)];
 			}
 			if (split.size() == 3 && split[0][0] != '#' && table) {
 				table[index * 3] = std::stof(split[0]);

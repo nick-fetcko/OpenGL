@@ -13,6 +13,7 @@
 
 using Handle = HANDLE;
 #else
+#include <vulkan/vulkan_wayland.h>
 using Handle = int;
 constexpr Handle INVALID_HANDLE_VALUE = static_cast<Handle>(-1);
 #endif
@@ -26,7 +27,7 @@ namespace Fetcko {
 class Vulkan : public Interop, public LoggableClass {
 private:
 	const inline static std::vector<const char *> ValidationLayers = {
-	"VK_LAYER_KHRONOS_validation"
+		"VK_LAYER_KHRONOS_validation"
 	};
 
 	const inline static std::vector<const char *> InstanceExtensions = {
@@ -34,6 +35,9 @@ private:
 		VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
 		VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
 		VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,
+#ifdef __linux__
+		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME
+#endif
 #ifdef WIN32
 		VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 #endif
@@ -53,7 +57,7 @@ private:
 	};
 
 	constexpr static bool enableValidationLayers =
-#ifdef _DEBUG
+#ifndef NDEBUG
 		true
 #else
 		false
@@ -99,7 +103,7 @@ private:
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 	bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
-	std::size_t RateDevice(VkPhysicalDevice device);
+	std::pair<std::string, std::size_t> RateDevice(VkPhysicalDevice device);
 
 	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
 	VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
@@ -107,7 +111,7 @@ private:
 
 	VkShaderModule CreateShaderModule(const std::string &code);
 
-	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	void RecordCommandBuffer(VkCommandBuffer commandBuffer);
 
 	void CreateInstance();
 	void SetupDebugMessenger();
@@ -126,6 +130,7 @@ private:
 	void CreateCommandPool();
 	void CreateCommandBuffer();
 	void CreateSyncObjects();
+	void DestroySyncObjects();
 	void CreateSharedResources();
 
 	VkInstance instance = VK_NULL_HANDLE;
@@ -155,8 +160,8 @@ private:
 	VkCommandPool commandPool = VK_NULL_HANDLE;
 	VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
 
-	VkSemaphore imageAvailableSemaphore;
-	VkSemaphore renderFinishedSemaphore;
+	std::vector<VkSemaphore> imageAvailableSemaphores;
+	std::vector<VkSemaphore> renderFinishedSemaphores;
 	VkFence inFlightFence;
 
 	struct SharedTexture {
@@ -195,6 +200,7 @@ private:
 
 	VkImageCopy imageCopy{};
 	uint32_t imageIndex = 0;
+	uint32_t lastImageIndex = 0;
 
 	VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
 	VkColorSpaceKHR colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
@@ -202,5 +208,7 @@ private:
 
 	bool resized = false;
 	bool formatChanged = false;
+
+	bool swapChainRecreated = false;
 };
 }

@@ -1,5 +1,6 @@
 #include "Vulkan.hpp"
 
+#include <cstring>
 #include <set>
 #include <string>
 
@@ -47,6 +48,28 @@ VkResult GetSemaphoreWin32HandleKHR(
 
 	if (func)
 		return func(device, pGetWin32HandleInfo, pHandle);
+
+	return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+#elif defined(__linux__)
+VkResult GetMemoryFdKHR(
+	VkDevice device,
+	const VkMemoryGetFdInfoKHR* pGetFdInfo,
+	int* pFd) {
+	auto func = (PFN_vkGetMemoryFdKHR)vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
+
+	if (func)
+		return func(device, pGetFdInfo, pFd);
+
+	return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+VkResult GetSemaphoreFdKHR(VkDevice device,
+    const VkSemaphoreGetFdInfoKHR *pGetFdInfo,
+    int *pFd) {
+	auto func = (PFN_vkGetSemaphoreFdKHR)vkGetDeviceProcAddr(device, "vkGetSemaphoreFdKHR");
+
+	if (func)
+		return func(device, pGetFdInfo, pFd);
 
 	return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
@@ -138,11 +161,12 @@ bool Vulkan::OnResize(int width, int height) {
 }
 
 void Vulkan::SetFormat(VkFormat format, VkColorSpaceKHR colorSpace, GLenum internalFormat) {
+	if (this->format != format)
+		formatChanged = true;
+
 	this->format = format;
 	this->colorSpace = colorSpace;
 	this->internalFormat = internalFormat;
-
-	formatChanged = true;
 }
 
 void Vulkan::OnDestroy() {
@@ -162,9 +186,7 @@ void Vulkan::OnDestroy() {
 	vkDestroyImageView(device, sharedTexture.view, nullptr);
 	vkDestroySampler(device, sharedTexture.sampler, nullptr);
 
-	vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
-	vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
-	vkDestroyFence(device, inFlightFence, nullptr);
+	DestroySyncObjects();
 
 	vkDestroyCommandPool(device, commandPool, nullptr);
 
@@ -185,13 +207,18 @@ void Vulkan::OnDestroy() {
 
 bool Vulkan::OnLoop() {
 	vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-	vkResetFences(device, 1, &inFlightFence);
 
-	vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	if (vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[lastImageIndex], VK_NULL_HANDLE, &imageIndex) != VK_SUCCESS) {
+		RecreateSwapChain();
+		swapChainRecreated = true;
+		return false;
+	}
+
+	vkResetFences(device, 1, &inFlightFence);
 
 	vkResetCommandBuffer(commandBuffer, 0);
 
-	RecordCommandBuffer(commandBuffer, imageIndex);
+	RecordCommandBuffer(commandBuffer);
 
 	return true;
 }
@@ -316,7 +343,7 @@ void Vulkan::SetupDebugMessenger() {
 	PopulateDebugMessengerCreateInfo(createInfo);
 
 	if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
-		LogError("failed to set up debug messanger!");
+		LogError("failed to set up debug messenger!");
 }
 
 void Vulkan::CreateSurface() {
@@ -390,7 +417,7 @@ Vulkan::SwapChainSupportDetails Vulkan::QuerySwapChainSupport(VkPhysicalDevice d
 	return ret;
 }
 
-std::size_t Vulkan::RateDevice(VkPhysicalDevice device) {
+std::pair<std::string, std::size_t> Vulkan::RateDevice(VkPhysicalDevice device) {
 	VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(device, &deviceProperties);
 
@@ -403,8 +430,7 @@ std::size_t Vulkan::RateDevice(VkPhysicalDevice device) {
 
 	auto queueFamilies = FindQueueFamilies(device);
 
-	std::size_t ret = 0;
-
+	std::pair<std::string, std::size_t> ret = {deviceProperties.deviceName , 0};
 	if (deviceFeatures.geometryShader &&
 		queueFamilies.IsComplete()
 		) {
@@ -414,9 +440,9 @@ std::size_t Vulkan::RateDevice(VkPhysicalDevice device) {
 
 			if (!swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty()) {
 				if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-					ret += 1000;
+					ret.second += 1000;
 
-				ret += deviceProperties.limits.maxImageDimension2D;
+				ret.second += deviceProperties.limits.maxImageDimension2D;
 			}
 		}
 	}
@@ -433,13 +459,16 @@ void Vulkan::PickPhysicalDevice() {
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-	std::multimap<std::size_t, VkPhysicalDevice> candidates;
-	for (const auto &device : devices)
-		candidates.insert(std::make_pair(RateDevice(device), device));
+	std::multimap<std::size_t, std::pair<VkPhysicalDevice, std::string>> candidates;
+	for (const auto &device : devices) {
+		auto [name, rating] = RateDevice(device);
+		candidates.insert(std::make_pair(rating, std::make_pair(device, name)));
+	}
 
-	if (candidates.rbegin()->first > 0)
-		physicalDevice = candidates.rbegin()->second;
-	else
+	if (candidates.rbegin()->first > 0) {
+		physicalDevice = candidates.rbegin()->second.first;
+		LogDebug("Selected device \"", candidates.rbegin()->second.second, "\" based on rating");
+	} else
 		LogError("failed to find a suitable GPU!");
 
 	if (physicalDevice == VK_NULL_HANDLE)
@@ -487,15 +516,23 @@ void Vulkan::CreateLogicalDevice() {
 }
 
 VkSurfaceFormatKHR Vulkan::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats) {
+	std::optional<VkSurfaceFormatKHR> foundFormat = std::nullopt;
 	for (const auto &availableFormat : availableFormats) {
 		if (availableFormat.format == /* VK_FORMAT_A2B10G10R10_UNORM_PACK32 */ format &&
 			availableFormat.colorSpace == /* VK_COLOR_SPACE_HDR10_ST2084_EXT*/ colorSpace)
 			return availableFormat;
+		else if (availableFormat.format == format && !foundFormat)
+			foundFormat = availableFormat;
+	}
+
+	if (foundFormat) {
+		LogWarning("Could not find preferred swap surface color space! Choosing one with at least the preferred format.");
+		return *foundFormat;
 	}
 
 	LogWarning("Could not find preferred swap surface format! Choosing the first one we found.");
 
-	return availableFormats[4];
+	return availableFormats[0];
 }
 
 VkPresentModeKHR Vulkan::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
@@ -882,7 +919,7 @@ void Vulkan::CreateCommandBuffer() {
 		LogError("failed to allocate command buffers!");
 }
 
-void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer) {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = 0;
@@ -956,6 +993,11 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 }
 
 bool Vulkan::SwapBuffers() {
+	if (swapChainRecreated) {
+		swapChainRecreated = false;
+		return true;
+	}
+
 	GLenum dstLayout = GL_LAYOUT_SHADER_READ_ONLY_EXT;
 	glSignalSemaphoreEXT(gl_complete, 0, nullptr, 1, &color, &dstLayout);
 
@@ -993,7 +1035,7 @@ bool Vulkan::SwapBuffers() {
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore waitSemaphores[] = { imageAvailableSemaphore, sharedSemaphores.gl_complete };
+	VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[lastImageIndex], sharedSemaphores.gl_complete };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT };
 	submitInfo.waitSemaphoreCount = 2;
 	submitInfo.pWaitSemaphores = waitSemaphores;
@@ -1001,7 +1043,7 @@ bool Vulkan::SwapBuffers() {
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffer;
 
-	VkSemaphore signalSemaphores[] = { renderFinishedSemaphore, sharedSemaphores.gl_ready };
+	VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[imageIndex], sharedSemaphores.gl_ready };
 	submitInfo.signalSemaphoreCount = 2;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1018,6 +1060,8 @@ bool Vulkan::SwapBuffers() {
 	presentInfo.pSwapchains = swapChains;
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
+
+	lastImageIndex = imageIndex;
 
 	if (vkQueuePresentKHR(presentQueue, &presentInfo) != VK_SUCCESS || resized || formatChanged) {
 		RecreateSwapChain();
@@ -1038,10 +1082,26 @@ void Vulkan::CreateSyncObjects() {
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS ||
-		vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
-		vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS)
-		LogError("failed to create semaphors and fence!");
+	imageAvailableSemaphores.resize(swapChainImages.size());
+	renderFinishedSemaphores.resize(swapChainImages.size());
+
+	for (std::size_t i = 0; i < swapChainImages.size(); ++i) {
+		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS)
+			LogError("failed to create semaphor for image ", i);
+	}
+
+	if (vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS)
+		LogError("Could not create fence!");
+}
+
+void Vulkan::DestroySyncObjects() {
+	for (std::size_t i = 0; i < swapChainImages.size(); ++i) {
+		vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+		vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+	}
+
+	vkDestroyFence(device, inFlightFence, nullptr);
 }
 
 // Derived from https://github.com/KhronosGroup/Vulkan-Samples/blob/main/samples/extensions/open_gl_interop/open_gl_interop.cpp
@@ -1102,7 +1162,7 @@ void Vulkan::CreateSharedResources() {
 		&sharedSemaphores.gl_ready) != VK_SUCCESS)
 		LogError("could not create semaphore!");
 
-#if WIN32
+#ifdef WIN32
 	VkSemaphoreGetWin32HandleInfoKHR semaphoreGetHandleInfo{
 		VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR, nullptr,
 		VK_NULL_HANDLE, compatable_semaphore_type };
@@ -1117,13 +1177,15 @@ void Vulkan::CreateSharedResources() {
 		VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR, nullptr,
 		VK_NULL_HANDLE, compatable_semaphore_type };
 	semaphoreGetFdInfo.semaphore = sharedSemaphores.gl_ready;
-	VK_CHECK(vkGetSemaphoreFdKHR(deviceHandle, &semaphoreGetFdInfo, &shareHandles.gl_ready));
+	if (GetSemaphoreFdKHR(device, &semaphoreGetFdInfo, &shareHandles.gl_ready) != VK_SUCCESS)
+		LogError("Could not get file descriptor for semaphore!");
 	semaphoreGetFdInfo.semaphore = sharedSemaphores.gl_complete;
-	VK_CHECK(vkGetSemaphoreFdKHR(deviceHandle, &semaphoreGetFdInfo, &shareHandles.gl_complete));
+	if (GetSemaphoreFdKHR(device, &semaphoreGetFdInfo, &shareHandles.gl_complete) != VK_SUCCESS)
+		LogError("Could not get file descriptor for semaphore!");
 #endif
 
 	VkExternalMemoryImageCreateInfo external_memory_image_create_info{ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO };
-#if WIN32
+#ifdef WIN32
 	external_memory_image_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
 #else
 	external_memory_image_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
@@ -1157,7 +1219,7 @@ void Vulkan::CreateSharedResources() {
 	VkExportMemoryAllocateInfo export_memory_allocate_Info;
 	export_memory_allocate_Info.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
 	export_memory_allocate_Info.pNext = &dedicated_allocate_info;
-#if WIN32
+#ifdef WIN32
 	export_memory_allocate_Info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
 #else
 	export_memory_allocate_Info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
@@ -1185,7 +1247,7 @@ void Vulkan::CreateSharedResources() {
 	if (vkBindImageMemory(device, sharedTexture.image, sharedTexture.memory, 0) != VK_SUCCESS)
 		LogError("could not allocate shared texture memory!");
 
-#if WIN32
+#ifdef WIN32
 	VkMemoryGetWin32HandleInfoKHR memoryFdInfo{ VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR, nullptr,
 											   sharedTexture.memory,
 											   VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT };
@@ -1195,7 +1257,8 @@ void Vulkan::CreateSharedResources() {
 	VkMemoryGetFdInfoKHR memoryFdInfo{ VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR, nullptr,
 									  sharedTexture.memory,
 									  VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT };
-	VK_CHECK(vkGetMemoryFdKHR(deviceHandle, &memoryFdInfo, &shareHandles.memory));
+	if (GetMemoryFdKHR(device, &memoryFdInfo, &shareHandles.memory) != VK_SUCCESS)
+		LogError("Could not get memory file descriptor!");
 #endif
 
 	// Calculate valid filter and mipmap modes
@@ -1242,9 +1305,19 @@ void Vulkan::CreateSharedResources() {
 	glMemoryObjectParameterivEXT(mem, GL_DEDICATED_MEMORY_OBJECT_EXT, &dedicated);
 
 	// Platform specific import.
+#ifdef WIN32
 	glImportSemaphoreWin32HandleEXT(gl_ready, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, shareHandles.gl_ready);
 	glImportSemaphoreWin32HandleEXT(gl_complete, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, shareHandles.gl_complete);
 	glImportMemoryWin32HandleEXT(mem, sharedTexture.allocationSize, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, shareHandles.memory);
+#elif defined(__linux__)
+	glImportSemaphoreFdEXT(gl_ready, GL_HANDLE_TYPE_OPAQUE_FD_EXT, shareHandles.gl_ready);
+	glImportSemaphoreFdEXT(gl_complete, GL_HANDLE_TYPE_OPAQUE_FD_EXT, shareHandles.gl_complete);
+	glImportMemoryFdEXT(mem, sharedTexture.allocationSize, GL_HANDLE_TYPE_OPAQUE_FD_EXT, shareHandles.memory);
+
+	// We need to signal this for the first frame
+	GLenum srcLayout = GL_LAYOUT_COLOR_ATTACHMENT_EXT;
+	glSignalSemaphoreEXT(gl_ready, 0, nullptr, 1, &color, &srcLayout);
+#endif
 
 	// Use the imported memory as backing for the OpenGL texture.  The internalFormat, dimensions
 	// and mip count should match the ones used by Vulkan to create the image and determine it's memory

@@ -75,3 +75,10 @@ target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURC
 target_compile_features(OpenGL PUBLIC cxx_std_17)
 target_compile_definitions(OpenGL PUBLIC _CRT_SECURE_NO_WARNINGS)
 target_link_libraries(OpenGL PUBLIC Utils MathsCPP glm::glm)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	# Here lies wstring_convert
+	# C++11 - C++17
+	# Gone Too Soon
+	target_compile_options(OpenGL PRIVATE -Wno-deprecated-declarations)
+endif()
