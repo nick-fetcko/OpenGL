@@ -57,7 +57,7 @@ private:
 	};
 
 	constexpr static bool enableValidationLayers =
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(USING_FLATPAK)
 		true
 #else
 		false
