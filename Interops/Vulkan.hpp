@@ -97,6 +97,8 @@ public:
 
 	void SetFormat(VkFormat format, VkColorSpaceKHR colorSpace, GLenum internalFormat);
 
+	const VkFormat GetSwapchainImageFormat() const { return swapChainImageFormat; }
+
 private:
 	void InitVulkan();
 
