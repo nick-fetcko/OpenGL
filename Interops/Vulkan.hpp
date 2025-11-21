@@ -36,7 +36,10 @@ private:
 		VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
 		VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,
 #ifdef __linux__
-		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME
+		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
+		// Can't include vulkan_xlib.h because
+		// it conflicts with vulkan_wayland.h
+		"VK_KHR_xlib_surface"
 #endif
 #ifdef WIN32
 		VK_KHR_WIN32_SURFACE_EXTENSION_NAME
