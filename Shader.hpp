@@ -18,12 +18,20 @@ public:
 		other.handle = 0;
 	}
 
-	~Shader() {
-		glDeleteShader(handle);
+	~Shader() override {
+#ifdef __ANDROID__
+		if (handle)
+#endif
+			glDeleteShader(handle);
 	}
 
 	bool Compile(const std::filesystem::path &path) {
 		auto string = Utils::GetStringFromFile(path);
+
+		return Compile(string);
+	}
+
+	bool Compile(const std::string &string) {
 		auto source = string.c_str();
 
 		int ret;
@@ -36,7 +44,7 @@ public:
 		if (!ret) {
 			GLint size = 0;
 			glGetShaderiv(handle, GL_INFO_LOG_LENGTH, &size);
-			
+
 			std::vector<char> infoLog(size);
 			glGetShaderInfoLog(handle, size, nullptr, infoLog.data());
 

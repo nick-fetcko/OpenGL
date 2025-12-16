@@ -34,6 +34,8 @@ public:
 
 	IDXGISwapChain1 *GetSwapChain() { return swapChain; }
 
+	void SetHdr(bool enabled, void *hwnd, int width, int height) override;
+
 	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex);
 
 private:

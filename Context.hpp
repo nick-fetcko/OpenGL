@@ -3,11 +3,15 @@
 #include <filesystem>
 #include <vector>
 
+#include "MathCPP/Rectangle.hpp"
+
 #include "Hash.hpp"
 
 #include "Logger.hpp"
 #include "Shader.hpp"
 #include "ShaderProgram.hpp"
+
+using namespace MathsCPP;
 
 namespace Fetcko {
 class Context {
@@ -39,11 +43,22 @@ public:
 
 		shader.vertex.Compile(vertex);
 
+#ifndef __ANDROID__
 		for (const auto &fragment : fragments) {
 			FragmentShader fragmentShader;
 			fragmentShader.Compile(fragment);
 			shader.fragments.emplace_back(std::move(fragmentShader));
 		}
+#else
+		std::string concat;
+		for (const auto &fragment : fragments) {
+			concat += Utils::GetStringFromFile(fragment);
+		}
+
+		FragmentShader fragmentShader;
+		fragmentShader.Compile(concat);
+		shader.fragments.emplace_back(std::move(fragmentShader));
+#endif
 
 		shader.program.Attach(
 			shader.vertex,
@@ -130,6 +145,9 @@ public:
 	const float &GetYOffset() const { return yOffset; }
 	void SetYOffset(float yOffset) { this->yOffset = yOffset; }
 
+	void SetSafeArea(Rectanglei &&rect) { this->safeArea = std::move(rect); }
+	const Rectanglei &GetSafeArea() const { return safeArea; }
+
 private:
 	std::map<std::uint32_t, Shader> shaders;
 	Shader *currentShader = nullptr;
@@ -138,5 +156,7 @@ private:
 	glm::mat4 projection{ 0.0f };
 
 	float yOffset = 0.0f;
+
+	Rectanglei safeArea{0, 0, 0, 0};
 };
 }

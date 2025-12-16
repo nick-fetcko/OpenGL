@@ -14,10 +14,22 @@ using namespace MathsCPP;
 namespace Fetcko {
 class Cube : public LoggableClass {
 public:
-	Cube() : texture(GL_RGB, GL_RGB) {
+	Cube() : texture(
+#ifndef __ANDROID__
+		GL_RGB, GL_RGB
+#else
+		GL_RGB16F, GL_RGB
+#endif
+	) {
 
 	}
-	Cube(const std::filesystem::path &path) : texture(GL_RGB, GL_RGB) {
+	Cube(const std::filesystem::path &path) : texture(
+#ifndef __ANDROID__
+			GL_RGB, GL_RGB
+#else
+			GL_RGB16F, GL_RGB
+#endif
+	) {
 		Load(path);
 	}
 

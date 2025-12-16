@@ -8,8 +8,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
 
 add_subdirectory(MathCPP)
 
-set(_glad_dir
-	third_party/glad)
+if (ANDROID)
+	set(_glad_dir
+		third_party/glad/ES)
+else()
+	set(_glad_dir
+		third_party/glad)
+endif()
 
 set(_lodepng_dir
 	third_party/lodepng)
@@ -42,7 +47,9 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/third_party FILES
 	${_lodepng_sources}
 	)
 
-find_package(glm CONFIG REQUIRED)
+if (NOT ANDROID)
+	find_package(glm CONFIG REQUIRED)
+endif()
 find_package(Vulkan REQUIRED)
 
 add_library(
@@ -71,10 +78,10 @@ add_library(
 	Interops/Vulkan.cpp
 )
 set_target_properties(OpenGL PROPERTIES LINKER_LANGUAGE CXX)
-target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> ${_glad_dir} ${_lodepng_dir} Vulkan::Vulkan)
+target_include_directories(OpenGL PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> ${_glad_dir} ${_lodepng_dir})
 target_compile_features(OpenGL PUBLIC cxx_std_17)
 target_compile_definitions(OpenGL PUBLIC _CRT_SECURE_NO_WARNINGS)
-target_link_libraries(OpenGL PUBLIC Utils MathsCPP glm::glm)
+target_link_libraries(OpenGL PUBLIC Utils MathsCPP glm::glm freetype)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	# Here lies wstring_convert

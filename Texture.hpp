@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+#include "Logger.hpp"
+
 namespace Fetcko {
 template<GLenum E>
 class Texture {
@@ -27,6 +29,7 @@ public:
 		internalFormat(internalFormat),
 		format(format) {
 		glGenTextures(1, &handle);
+
 		if (bind) Bind();
 	}
 	~Texture() {
@@ -79,6 +82,7 @@ public:
 		);
 	}
 
+#ifndef __ANDROID__
 	template<
 		GLenum _E = E,
 		typename std::enable_if_t<_E == GL_TEXTURE_2D_MULTISAMPLE, bool> * = nullptr
@@ -93,6 +97,7 @@ public:
 			GL_TRUE
 		);
 	}
+#endif
 
 	template<
 		GLenum _E = E,
@@ -116,5 +121,9 @@ private:
 
 using Texture2D = Texture<GL_TEXTURE_2D>;
 using Texture3D = Texture<GL_TEXTURE_3D>;
+#ifndef __ANDROID__
 using MultisampledTexture2D = Texture<GL_TEXTURE_2D_MULTISAMPLE>;
+#else
+using MultisampledTexture2D = Texture<GL_TEXTURE_2D>;
+#endif
 }

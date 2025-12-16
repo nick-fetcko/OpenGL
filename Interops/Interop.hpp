@@ -2,6 +2,8 @@
 
 #include <functional>
 
+#include <glad/glad.h>
+
 namespace Fetcko {
 class Interop {
 public:
@@ -19,6 +21,8 @@ public:
 
 	virtual bool OnLoop() = 0;
 	virtual bool SwapBuffers() = 0;
+
+	virtual void SetHdr(bool enabled, void *hwnd = nullptr, int width = 0, int height = 0) = 0;
 
 	const GLuint GetFramebuffer() const { return fbo; }
 

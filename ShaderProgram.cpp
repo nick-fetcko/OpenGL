@@ -16,7 +16,10 @@ ShaderProgram::ShaderProgram(ShaderProgram &&other) noexcept {
 }
 
 ShaderProgram::~ShaderProgram() {
-	glDeleteProgram(handle);
+#ifdef __ANDROID__
+	if (handle)
+#endif
+		glDeleteProgram(handle);
 }
 
 void ShaderProgram::Attach(

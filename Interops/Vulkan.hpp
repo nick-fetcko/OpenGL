@@ -12,8 +12,12 @@
 #include <vulkan/vulkan_win32.h>
 
 using Handle = HANDLE;
+#elif defined(__linux__)
+#ifdef __ANDROID__
+#include <vulkan/vulkan_android.h>
 #else
 #include <vulkan/vulkan_wayland.h>
+#endif
 using Handle = int;
 constexpr Handle INVALID_HANDLE_VALUE = static_cast<Handle>(-1);
 #endif
@@ -35,7 +39,9 @@ private:
 		VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
 		VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
 		VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,
-#ifdef __linux__
+#ifdef __ANDROID__
+		VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
+#elif defined(__linux__)
 		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
 		// Can't include vulkan_xlib.h because
 		// it conflicts with vulkan_wayland.h
@@ -60,7 +66,7 @@ private:
 	};
 
 	constexpr static bool enableValidationLayers =
-#if !defined(NDEBUG) && !defined(USING_FLATPAK)
+#if !defined(NDEBUG) && !defined(USING_FLATPAK) && !defined(__ANDROID__)
 		true
 #else
 		false
@@ -98,6 +104,8 @@ public:
 	void SetFormat(VkFormat format, VkColorSpaceKHR colorSpace, GLenum internalFormat);
 
 	const VkFormat GetSwapchainImageFormat() const { return swapChainImageFormat; }
+
+	void SetHdr(bool enabled, void *hwnd = nullptr, int width = 0, int height = 0) override;
 
 private:
 	void InitVulkan();

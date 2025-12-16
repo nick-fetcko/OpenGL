@@ -366,5 +366,13 @@ bool DXGI::SwapBuffers() {
 void DXGI::Bind() {
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 }
+
+void DXGI::SetHdr(bool enabled, void *hwnd, int width, int height) {
+	if (!enabled) OnDestroy();
+	else {
+		OnCreate(reinterpret_cast<HWND>(hwnd), width, height);
+		OnResize(width, height);
+	}
+}
 }
 #endif

@@ -80,9 +80,17 @@ public:
 	}
 
 	std::vector<T> GetBufferSubData(GLintptr offset, GLsizeiptr size) {
+#ifdef __ANDROID__
+		auto mem = glMapBufferRange(E, offset * sizeof(T), size * sizeof(T), GL_MAP_READ_BIT);
+		std::vector<T> ret(size);
+		memcpy(ret.data(), mem, size * sizeof(T));
+		glUnmapBuffer(E);
+		return ret;
+#else
 		std::vector<T> ret(size);
 		glGetBufferSubData(E, offset * sizeof(T), size * sizeof(T), ret.data());
 		return ret;
+#endif
 	}
 
 	inline constexpr void DrawArrays(GLenum mode, GLint first, GLsizei count) {

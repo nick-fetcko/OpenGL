@@ -42,7 +42,7 @@ struct [[gnu::packed]] BITMAPINFOHEADER {
 template<bool Multisampled>
 class Framebuffer : public LoggableClass {
 public:
-	Framebuffer(GLsizei width, GLsizei height, GLint format = GL_RGBA) : texture(format) {
+	Framebuffer(GLsizei width, GLsizei height, GLint format = GL_RGBA, bool inverted = false) : texture(format) {
 		this->width = width;
 		this->height = height;
 
@@ -53,7 +53,7 @@ public:
 		glBindFramebuffer(GL_FRAMEBUFFER, handle);
 
 		texture.Bind();
-		texture.TexImage2D(width, height, nullptr);
+		texture.TexImage2D(width, height, nullptr, format == GL_RGBA16F ? GL_FLOAT : GL_UNSIGNED_INT);
 		texture.SetTexParameters();
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture.GetHandle(), 0);
 		texture.Unbind();
@@ -63,6 +63,7 @@ public:
 			LogError("Framebuffer not complete!");
 #endif
 
+#ifndef __ANDROID__
 		if constexpr (Multisampled) {
 			glGenFramebuffers(1, &multisampledHandle);
 
@@ -85,14 +86,15 @@ public:
 				LogError("Multisampled framebuffer not complete! status = ", status);
 #endif
 		}
+#endif
 
 		Unbind();
 
 		std::vector<float> squareBuffer = {
-			0                          , 0                           , Buffers::TexCoordBuffer[0], Buffers::TexCoordBuffer[1],
-			0                          , static_cast<GLfloat>(height), Buffers::TexCoordBuffer[2], Buffers::TexCoordBuffer[3],
-			static_cast<GLfloat>(width), static_cast<GLfloat>(height), Buffers::TexCoordBuffer[4], Buffers::TexCoordBuffer[5],
-			static_cast<GLfloat>(width), 0                           , Buffers::TexCoordBuffer[6], Buffers::TexCoordBuffer[7]
+			0                          , 0                           , Buffers::TexCoordBuffer[0], inverted ? Buffers::TexCoordBuffer[3] : Buffers::TexCoordBuffer[1],
+			0                          , static_cast<GLfloat>(height), Buffers::TexCoordBuffer[2], inverted ? Buffers::TexCoordBuffer[1] : Buffers::TexCoordBuffer[3],
+			static_cast<GLfloat>(width), static_cast<GLfloat>(height), Buffers::TexCoordBuffer[4], inverted ? Buffers::TexCoordBuffer[7] : Buffers::TexCoordBuffer[5],
+			static_cast<GLfloat>(width), 0                           , Buffers::TexCoordBuffer[6], inverted ? Buffers::TexCoordBuffer[5] : Buffers::TexCoordBuffer[7]
 		};
 
 		vao.Bind();
@@ -130,7 +132,7 @@ public:
 		defaultFramebuffer = other.defaultFramebuffer;
 	}
 
-	virtual ~Framebuffer() {
+	~Framebuffer() override {
 		glDeleteFramebuffers(1, &handle);
 
 		if constexpr (Multisampled) {
@@ -154,6 +156,7 @@ public:
 		glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
 	}
 
+#ifndef __ANDROID__
 	template<
 		bool _Multisampled = Multisampled,
 		typename std::enable_if_t<_Multisampled == true, bool> * = nullptr
@@ -165,6 +168,11 @@ public:
 
 		multisampledTexture->Unbind();
 	}
+#else
+	inline void DrawMultisampled(GLfloat x, GLfloat y, Context &context) {
+		Draw(x, y, context);
+	}
+#endif
 
 	inline void Blit(Context &context, Framebuffer *target = nullptr) {
 		// glBlitFramebuffer is SLOW
@@ -182,9 +190,19 @@ public:
 		Unbind();
 		*/
 
-		glBindFramebuffer(GL_FRAMEBUFFER, target ? target->multisampledHandle : handle);
+		glBindFramebuffer(GL_FRAMEBUFFER, target ?
+#ifdef __ANDROID__
+			target->handle
+#else
+			target->multisampledHandle
+#endif
+			: handle
+		);
 
-		multisampledTexture->Bind();
+		if constexpr (Multisampled)
+			multisampledTexture->Bind();
+		else
+			texture.Bind();
 
 		if (!target) {
 			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -202,7 +220,10 @@ public:
 			vao.Unbind();
 		});
 
-		multisampledTexture->Unbind();
+		if constexpr (Multisampled)
+			multisampledTexture->Unbind();
+		else
+			texture.Unbind();
 
 		Unbind();
 	}
@@ -213,6 +234,11 @@ public:
 
 			if (target)
 				return;
+		}
+
+		if (target) {
+			Blit(context, target);
+			return;
 		}
 
 		texture.Bind();
@@ -256,6 +282,10 @@ public:
 	const GLsizei &GetHeight() const { return height; }
 
 	std::vector<uint8_t> GetBitmap(GLenum format = GL_RGBA, bool upsideDown = true) const {
+#ifdef __ANDROID__
+		// No glGetTexImage on ES
+		return {};
+#else
 		texture.Bind();
 
 		auto pitch = static_cast<GLsizei>(std::ceil(width * 3 / 4.0f) * 4);
@@ -294,7 +324,10 @@ public:
 		}
 
 		return format == GL_RGBA ? rgba : rgb;
+#endif
 	}
+
+	const GLuint GetHandle() const { return handle; }
 
 protected:
 	inline void _Draw(GLfloat x, GLfloat y, Context &context) {
@@ -327,6 +360,9 @@ protected:
 };
 
 using FramebufferObject = Framebuffer<false>;
+#ifndef __ANDROID__
 using MultisampledFramebufferObject = Framebuffer<true>;
-
+#else
+using MultisampledFramebufferObject = Framebuffer<false>;
+#endif
 }

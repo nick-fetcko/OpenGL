@@ -197,6 +197,9 @@ bool OpenGLFont::SetFontSize(FT_UInt size) {
 	// Flush any characters we have
 	characters.clear();
 
+	vbo = ArrayBuffer();
+	vao = VertexArray();
+
 	LoadInitialCharacters();
 
 	return true;
@@ -233,7 +236,6 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadMissingGlyph
 	auto data = vbo.GetBufferSubData(0, 6 * 4 * characters.size());
 	vbo.BufferData(sizeof(float) * 6 * 4 * (characters.size() + 1));
 	vbo.BufferSubData(0, 6 * 4 * characters.size() * sizeof(float), data.data());
-
 	auto ret = LoadGlyph(characters.size(), c);
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
@@ -287,7 +289,11 @@ OpenGLFont::Bounds OpenGLFont::MeasureText(const std::string &text, float scale)
 std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::CacheText(const std::string &text, glm::vec3 color, Context &context) {
 	const auto bounds = MeasureText(text, 1.0f);
 
-	auto framebuffer = std::make_unique<FramebufferObject>(bounds.width, bounds.renderedHeight);
+	auto framebuffer = std::make_unique<FramebufferObject>(bounds.width, bounds.renderedHeight
+#ifdef __ANDROID__
+		, GL_RGBA16F
+#endif
+	);
 	framebuffer->SetDefaultFramebuffer(defaultFramebuffer);
 	framebuffer->Bind();
 	GLint oldViewport[4];
@@ -297,6 +303,7 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 
 	glGetIntegerv(GL_VIEWPORT, oldViewport);
 	glViewport(0, 0, bounds.width, bounds.renderedHeight);
+
 	auto projection = glm::ortho(0.0f, static_cast<float>(bounds.width), 0.0f, static_cast<float>(bounds.renderedHeight));
 	projection = glm::translate(
 		projection, 
@@ -308,6 +315,7 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
+
 	RenderText(text, projection, color, context);
 	framebuffer->Unbind();
 	glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);

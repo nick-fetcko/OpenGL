@@ -141,10 +141,11 @@ bool OpenGLVector::Load(const std::filesystem::path &path, Size<float> size) {
 }
 
 void OpenGLVector::Render() {
-	glDisable(GL_BLEND);
+	//glDisable(GL_BLEND);
 	vao.Bind();
 	indexBuffer.Bind();
 	indexBuffer.DrawElements(GL_TRIANGLES);
+	indexBuffer.Unbind();
 	vao.Unbind();
 }
 }

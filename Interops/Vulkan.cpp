@@ -332,8 +332,8 @@ void Vulkan::CreateInstance() {
 	for (const auto &extension : extensions)
 		LogDebug('\t', extension.extensionName);
 
-	if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
-		LogError("failed to create instance!");
+	if (auto ret = vkCreateInstance(&createInfo, nullptr, &instance); ret != VK_SUCCESS)
+		LogError("failed to create instance! ", ret);
 }
 
 void Vulkan::SetupDebugMessenger() {
@@ -1114,6 +1114,7 @@ void Vulkan::CreateSharedResources() {
 
 	glDeleteTextures(1, &color);
 	glDeleteMemoryObjectsEXT(1, &mem);
+
 	glDeleteFramebuffers(1, &fbo);
 	glDeleteSemaphoresEXT(1, &gl_ready);
 	glDeleteSemaphoresEXT(1, &gl_complete);
@@ -1286,7 +1287,9 @@ void Vulkan::CreateSharedResources() {
 															  0, 1 };
 	vkCreateImageView(device, &viewCreateInfo, nullptr, &sharedTexture.view);
 
+#ifndef __ANDROID__
 	gladLoadGL();
+#endif
 
 	// Create the texture for the FBO color attachment.
 	// This only reserves the ID, it doesn't allocate memory
@@ -1328,7 +1331,37 @@ void Vulkan::CreateSharedResources() {
 
 	glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color, 0);
+#ifndef __ANDROID__
+	glFramebufferTexture
+#else
+	glFramebufferTexture2D
+#endif
+		(
+			GL_FRAMEBUFFER,
+			GL_COLOR_ATTACHMENT0,
+#ifdef __ANDROID__
+			GL_TEXTURE_2D,
+#endif
+    		color,
+			0
+		);
+}
+
+void Vulkan::SetHdr(bool enabled, void *hwnd, int width, int height) {
+	if (enabled) {
+		SetFormat(
+			VK_FORMAT_R16G16B16A16_SFLOAT,
+			VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
+			GL_RGBA16F
+		);
+	} else {
+		SetFormat(
+			VK_FORMAT_R8G8B8A8_UNORM,
+			VK_COLORSPACE_SRGB_NONLINEAR_KHR,
+			GL_RGBA8
+		);
+	}
+	OnResize(width, height);
 }
 
 }
