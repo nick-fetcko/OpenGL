@@ -18,8 +18,8 @@ DXGI::~DXGI() {
 		output->Release();
 }
 
-std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputIndex) {
-	if (lastOutputIndex == outputIndex) return std::nullopt;
+std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputIndex, bool force) {
+	if (lastOutputIndex == outputIndex && !force) return std::nullopt;
 
 	lastOutputIndex = outputIndex;
 
@@ -97,9 +97,19 @@ std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputI
 				if (result != ERROR_SUCCESS)
 					return std::nullopt;
 
+				DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO_2 advancedColorInfo = {};
+				advancedColorInfo.header.adapterId = path.targetInfo.adapterId;
+				advancedColorInfo.header.id = path.targetInfo.id;
+				advancedColorInfo.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO_2;
+				advancedColorInfo.header.size = sizeof(advancedColorInfo);
+
+				result = DisplayConfigGetDeviceInfo(&advancedColorInfo.header);
+
+				if (result != ERROR_SUCCESS)
+					return std::nullopt;
+
 				return std::tuple<bool, float, float>{
-					// Treat all P2020 displays as HDR and all P709 displays as SDR
-					desc.ColorSpace >= DXGI_COLOR_SPACE_YCBCR_STUDIO_G22_LEFT_P2020 && desc.ColorSpace <= DXGI_COLOR_SPACE_YCBCR_STUDIO_G24_TOPLEFT_P2020,
+					advancedColorInfo.highDynamicRangeUserEnabled == 1,
 					sdrWhiteLevel.SDRWhiteLevel / 1000.0f,
 					maxLuminance / (sdrWhiteLevel.SDRWhiteLevel / 1000.0f)
 				};

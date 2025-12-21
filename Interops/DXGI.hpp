@@ -36,7 +36,7 @@ public:
 
 	void SetHdr(bool enabled, void *hwnd, int width, int height) override;
 
-	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex);
+	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex, bool force = false);
 
 private:
 	inline bool Load();
