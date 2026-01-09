@@ -537,7 +537,7 @@ VkSurfaceFormatKHR Vulkan::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFo
 
 VkPresentModeKHR Vulkan::ChooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
 	for (const auto &availablePresentMode : availablePresentModes) {
-		if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+		if (availablePresentMode == preferredPresentMode)
 			return availablePresentMode;
 	}
 
@@ -570,7 +570,7 @@ VkExtent2D Vulkan::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities
 }
 
 void Vulkan::CreateSwapChain() {
-	auto swapChainSupport = QuerySwapChainSupport(physicalDevice);
+	swapChainSupport = QuerySwapChainSupport(physicalDevice);
 
 	auto surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
 	auto presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
@@ -1361,6 +1361,22 @@ void Vulkan::SetHdr(bool enabled, void *hwnd, int width, int height) {
 			GL_RGBA8
 		);
 	}
+	OnResize(width, height);
+}
+
+void Vulkan::SetVsync(bool vsync) {
+	if (vsync) preferredPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+	else {
+		preferredPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+
+		for (const auto &presentMode : swapChainSupport.presentModes) {
+			if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+				preferredPresentMode = presentMode;
+				break;
+			}
+		}
+	}
+
 	OnResize(width, height);
 }
 

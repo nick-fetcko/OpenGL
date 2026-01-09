@@ -23,6 +23,7 @@ public:
 	virtual bool SwapBuffers() = 0;
 
 	virtual void SetHdr(bool enabled, void *hwnd = nullptr, int width = 0, int height = 0) = 0;
+	virtual void SetVsync(bool vsync) = 0;
 
 	const GLuint GetFramebuffer() const { return fbo; }
 

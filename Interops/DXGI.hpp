@@ -36,6 +36,8 @@ public:
 
 	void SetHdr(bool enabled, void *hwnd, int width, int height) override;
 
+	void SetVsync(bool vsync) override;
+
 	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex, bool force = false);
 
 private:
@@ -64,6 +66,8 @@ private:
 	HRESULT hr = S_OK;
 
 	int lastOutputIndex = -1;
+
+	int vsync = 1;
 };
 }
 #endif

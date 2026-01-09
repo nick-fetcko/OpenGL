@@ -107,6 +107,8 @@ public:
 
 	void SetHdr(bool enabled, void *hwnd = nullptr, int width = 0, int height = 0) override;
 
+	void SetVsync(bool vsync) override;
+
 private:
 	void InitVulkan();
 
@@ -157,6 +159,7 @@ private:
 	VkSurfaceKHR surface = VK_NULL_HANDLE;
 
 	VkSwapchainKHR swapChain = VK_NULL_HANDLE;
+	SwapChainSupportDetails swapChainSupport;
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 
@@ -223,5 +226,7 @@ private:
 	bool formatChanged = false;
 
 	bool swapChainRecreated = false;
+
+	VkPresentModeKHR preferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 };
 }

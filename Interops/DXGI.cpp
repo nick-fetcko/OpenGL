@@ -368,7 +368,7 @@ bool DXGI::SwapBuffers() {
 	if (depthBuffer)
 		wglDXUnregisterObjectNV(dxDevice, dxObjects[1]);
 
-	swapChain->Present(1, 0);
+	swapChain->Present(vsync, 0);
 
 	return true;
 }
@@ -380,9 +380,16 @@ void DXGI::Bind() {
 void DXGI::SetHdr(bool enabled, void *hwnd, int width, int height) {
 	if (!enabled) OnDestroy();
 	else {
-		OnCreate(reinterpret_cast<HWND>(hwnd), width, height);
+		// Only create if we've been destroyed
+		if (!colorBuffer)
+			OnCreate(reinterpret_cast<HWND>(hwnd), width, height);
+
 		OnResize(width, height);
 	}
+}
+
+void DXGI::SetVsync(bool vsync) {
+	this->vsync = vsync ? 1 : 0;
 }
 }
 #endif
