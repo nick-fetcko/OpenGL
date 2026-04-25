@@ -186,6 +186,10 @@ void Vulkan::OnDestroy() {
 	vkDestroyImageView(device, sharedTexture.view, nullptr);
 	vkDestroySampler(device, sharedTexture.sampler, nullptr);
 
+	// Reset all members to 0 / VK_NULL_HANDLE
+	sharedSemaphores = Semaphores{};
+	sharedTexture = SharedTexture{};
+
 	DestroySyncObjects();
 
 	vkDestroyCommandPool(device, commandPool, nullptr);
@@ -931,28 +935,10 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer) {
 	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
 		LogError("failed to begin recording command buffer!");
 
-	VkRenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = renderPass;
-	renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-	renderPassInfo.renderArea.offset = { 0, 0 };
-	renderPassInfo.renderArea.extent = swapChainExtent;
-
-	VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-	renderPassInfo.clearValueCount = 1;
-	renderPassInfo.pClearValues = &clearColor;
-
-	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
-	vkCmdEndRenderPass(commandBuffer);
-
 	VkImageLayout imageLayout{};
 
-	imageCopy.srcOffset = { 0, 0 };
-	imageCopy.dstOffset = { 0, 0 };
+	imageCopy.srcOffset = { 0, 0, 0 };
+	imageCopy.dstOffset = { 0, 0, 0 };
 	imageCopy.extent.depth = 1;
 	imageCopy.extent.width = swapChainExtent.width;
 	imageCopy.extent.height = swapChainExtent.height;
@@ -986,13 +972,13 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer) {
 		VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0, 0, nullptr, 0, nullptr, 1, &dstBarrier);
 
-	GLenum srcLayout = GL_LAYOUT_COLOR_ATTACHMENT_EXT;
+	const GLenum srcLayout = GL_LAYOUT_COLOR_ATTACHMENT_EXT;
 	glWaitSemaphoreEXT(gl_ready, 0, nullptr, 1, &color, &srcLayout);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-	glClearColor(1.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	//glClearColor(0.0, 0.0, 0.0, 1.0);
+	//glClear(GL_COLOR_BUFFER_BIT);
 }
 
 bool Vulkan::SwapBuffers() {
@@ -1001,7 +987,7 @@ bool Vulkan::SwapBuffers() {
 		return true;
 	}
 
-	GLenum dstLayout = GL_LAYOUT_SHADER_READ_ONLY_EXT;
+	const GLenum dstLayout = GL_LAYOUT_SHADER_READ_ONLY_EXT;
 	glSignalSemaphoreEXT(gl_complete, 0, nullptr, 1, &color, &dstLayout);
 
 	glFlush();
@@ -1110,10 +1096,14 @@ void Vulkan::DestroySyncObjects() {
 // Derived from https://github.com/KhronosGroup/Vulkan-Samples/blob/main/samples/extensions/open_gl_interop/open_gl_interop.cpp
 // and https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceMemoryProperties.html
 void Vulkan::CreateSharedResources() {
-	vkDestroyImage(device, sharedTexture.image, nullptr);
-	vkFreeMemory(device, sharedTexture.memory, nullptr);
-	vkDestroyImageView(device, sharedTexture.view, nullptr);
-	vkDestroySampler(device, sharedTexture.sampler, nullptr);
+	if (sharedTexture.image)
+		vkDestroyImage(device, sharedTexture.image, nullptr);
+	if (sharedTexture.memory)
+		vkFreeMemory(device, sharedTexture.memory, nullptr);
+	if (sharedTexture.view)
+		vkDestroyImageView(device, sharedTexture.view, nullptr);
+	if (sharedTexture.sampler)
+		vkDestroySampler(device, sharedTexture.sampler, nullptr);
 
 	glDeleteTextures(1, &color);
 	glDeleteMemoryObjectsEXT(1, &mem);
@@ -1122,8 +1112,10 @@ void Vulkan::CreateSharedResources() {
 	glDeleteSemaphoresEXT(1, &gl_ready);
 	glDeleteSemaphoresEXT(1, &gl_complete);
 
-	vkDestroySemaphore(device, sharedSemaphores.gl_ready, nullptr);
-	vkDestroySemaphore(device, sharedSemaphores.gl_complete, nullptr);
+	if (sharedSemaphores.gl_ready)
+		vkDestroySemaphore(device, sharedSemaphores.gl_ready, nullptr);
+	if (sharedSemaphores.gl_complete)
+		vkDestroySemaphore(device, sharedSemaphores.gl_complete, nullptr);
 
 	VkExternalSemaphoreHandleTypeFlagBits flags[] = {
 			VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT,
