@@ -417,7 +417,7 @@ Vulkan::SwapChainSupportDetails Vulkan::QuerySwapChainSupport(VkPhysicalDevice d
 	return ret;
 }
 
-std::pair<std::string, std::size_t> Vulkan::RateDevice(VkPhysicalDevice device) {
+std::tuple<std::string, std::size_t, uint32_t> Vulkan::RateDevice(VkPhysicalDevice device) {
 	VkPhysicalDeviceProperties deviceProperties;
 	vkGetPhysicalDeviceProperties(device, &deviceProperties);
 
@@ -430,7 +430,7 @@ std::pair<std::string, std::size_t> Vulkan::RateDevice(VkPhysicalDevice device) 
 
 	auto queueFamilies = FindQueueFamilies(device);
 
-	std::pair<std::string, std::size_t> ret = {deviceProperties.deviceName , 0};
+	std::tuple<std::string, std::size_t, uint32_t> ret = {deviceProperties.deviceName, 0, 0};
 	if (deviceFeatures.geometryShader &&
 		queueFamilies.IsComplete()
 		) {
@@ -440,9 +440,10 @@ std::pair<std::string, std::size_t> Vulkan::RateDevice(VkPhysicalDevice device) 
 
 			if (!swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty()) {
 				if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-					ret.second += 1000;
+					std::get<1>(ret) += 1000;
 
-				ret.second += deviceProperties.limits.maxImageDimension2D;
+				std::get<1>(ret) += deviceProperties.limits.maxImageDimension2D;
+				std::get<2>(ret) = deviceProperties.limits.maxImageDimension2D;
 			}
 		}
 	}
@@ -459,15 +460,17 @@ void Vulkan::PickPhysicalDevice() {
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-	std::multimap<std::size_t, std::pair<VkPhysicalDevice, std::string>> candidates;
+	std::multimap<std::size_t, std::tuple<VkPhysicalDevice, std::string, uint32_t>> candidates;
 	for (const auto &device : devices) {
-		auto [name, rating] = RateDevice(device);
-		candidates.insert(std::make_pair(rating, std::make_pair(device, name)));
+		auto [name, rating, maxTextureSize] = RateDevice(device);
+		candidates.insert(std::make_pair(rating, std::make_tuple(device, name, maxTextureSize)));
 	}
 
 	if (candidates.rbegin()->first > 0) {
-		physicalDevice = candidates.rbegin()->second.first;
-		LogDebug("Selected device \"", candidates.rbegin()->second.second, "\" based on rating");
+		physicalDevice = std::get<0>(candidates.rbegin()->second);
+		maxTextureSize = std::get<2>(candidates.rbegin()->second);
+
+		LogDebug("Selected device \"", std::get<1>(candidates.rbegin()->second), "\" based on rating ", candidates.rbegin()->first, ". Max texture size = ", maxTextureSize);
 	} else
 		LogError("failed to find a suitable GPU!");
 

@@ -118,7 +118,7 @@ private:
 	QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 	bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
-	std::pair<std::string, std::size_t> RateDevice(VkPhysicalDevice device);
+	std::tuple<std::string, std::size_t, uint32_t> RateDevice(VkPhysicalDevice device);
 
 	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
 	VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
@@ -228,5 +228,7 @@ private:
 	bool swapChainRecreated = false;
 
 	VkPresentModeKHR preferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+
+	uint32_t maxTextureSize = 0;
 };
 }
