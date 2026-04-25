@@ -298,8 +298,11 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	framebuffer->Bind();
 	GLint oldViewport[4];
 
-	// We don't want to apply the alpha channel twice
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	// We don't want to apply the alpha channel twice,
+	// but outlines need to blend with themselves as
+	// the glyphs bleed over into each other
+	if (outlineRadius == 0)
+		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	glGetIntegerv(GL_VIEWPORT, oldViewport);
 	glViewport(0, 0, bounds.width, bounds.renderedHeight);
@@ -321,7 +324,8 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);
 
 	// Return to our normal blending
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	if (outlineRadius == 0)
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	return std::make_pair(std::move(framebuffer), bounds);
 }
