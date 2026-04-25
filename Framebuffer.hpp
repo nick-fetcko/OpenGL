@@ -24,6 +24,7 @@ struct [[gnu::packed]] BMPHeader {
 	uint32_t offset = 0;
 };
 
+#ifndef WIN32
 struct [[gnu::packed]] BITMAPINFOHEADER {
 	uint32_t size = 40;
 	uint32_t width = 0;
@@ -37,6 +38,7 @@ struct [[gnu::packed]] BITMAPINFOHEADER {
 	uint32_t nColors = 0;
 	uint32_t nImportant = 0;
 };
+#endif
 #pragma pack (pop)
 
 template<bool Multisampled>
@@ -174,7 +176,7 @@ public:
 	}
 #endif
 
-	inline void Blit(Context &context, Framebuffer *target = nullptr) {
+	inline void Blit(Context &context, Framebuffer *target = nullptr, float clearColor = 0.0f, float clearAlpha = 0.0f) {
 		// glBlitFramebuffer is SLOW
 		/*
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampledHandle);
@@ -205,7 +207,7 @@ public:
 			texture.Bind();
 
 		if (!target) {
-			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+			glClearColor(clearColor, clearColor, clearColor, clearAlpha);
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
 
