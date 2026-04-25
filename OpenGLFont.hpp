@@ -27,6 +27,10 @@
 namespace Fetcko {
 class OpenGLFont : public LoggableClass {
 public:
+	OpenGLFont(bool bold = false) : bold(bold) {
+
+	}
+
 	virtual ~OpenGLFont() = default;
 
 	static constexpr std::string_view CharacterSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/:' ,_()-.$";
@@ -127,5 +131,7 @@ private:
 	Bounds em{ 0, 0, 0, 0 };
 
 	GLuint defaultFramebuffer = 0;
+
+	bool bold = false;
 };
 }

@@ -167,7 +167,7 @@ bool OpenGLFont::OnInit(const std::string &rootFont, FT_UInt size, int outline) 
 	// Find all fonts that start with rootFont
 	for (const auto &iter : std::filesystem::directory_iterator(Utils::GetResourceFolder())) {
 		if (iter.path().stem().u8string().find(rootFont) == 0 &&
-			iter.path().extension().u8string() == ".ttf") {
+			iter.path().filename().u8string().find(bold ? "-Bd.ttf" : "-Rg.ttf") != std::string::npos) {
 			fontFiles.emplace_back(iter.path().filename().u8string());
 		}
 	}
