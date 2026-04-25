@@ -25,6 +25,7 @@
 using namespace MathsCPP;
 using namespace Fetcko;
 
+namespace Fetcko {
 class Polyline : public LoggableClass {
 public:
 	enum class Join { None, Miter };
@@ -391,3 +392,4 @@ private:
 	std::unique_ptr<ArrayBuffer> vbo;
 	std::unique_ptr<ElementBuffer> eab;
 };
+}
