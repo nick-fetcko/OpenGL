@@ -216,11 +216,11 @@ bool OpenGLFont::SetFontSize(FT_UInt size) {
 	return true;
 }
 
-void OpenGLFont::SetOutlineRadius(int radius) {
+void OpenGLFont::SetOutlineRadius(float radius) {
 	FT_Stroker_Done(stroker);
 
 	FT_Stroker_New(ft, &stroker);
-	FT_Stroker_Set(stroker, radius * 64, FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
+	FT_Stroker_Set(stroker, static_cast<FT_Fixed>(radius * 64.0f), FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
 	outlineRadius = radius;
 
 	// Flush any characters we have

@@ -60,7 +60,8 @@ public:
 	const bool HasFaces() const { return !faces.empty(); }
 	
 	bool SetFontSize(FT_UInt size);
-	void SetOutlineRadius(int radius);
+	const FT_UInt GetFontSize() const { return size; }
+	void SetOutlineRadius(float radius);
 
 	const int GetOutlineRadius() const { return outlineRadius; }
 
