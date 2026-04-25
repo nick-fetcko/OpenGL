@@ -181,6 +181,10 @@ bool OpenGLFont::OnInit(const std::string &rootFont, FT_UInt size, int outline) 
 }
 
 bool OpenGLFont::SetFontSize(FT_UInt size) {
+	// Reset overhang so it
+	// can be recalculated
+	overhang = 0;
+
 	for (auto face : faces)
 		FT_Done_Face(face);
 
