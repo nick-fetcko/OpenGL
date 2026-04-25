@@ -5,6 +5,7 @@
 #include <optional>
 #include <locale>
 #include <memory>
+#include <set>
 
 #include <freetype/ftstroke.h>
 
@@ -27,6 +28,11 @@
 namespace Fetcko {
 class OpenGLFont : public LoggableClass {
 public:
+	class SizeChangedListener {
+	public:
+		virtual void OnSizeChanged(FT_UInt size) = 0;
+	};
+
 	OpenGLFont(bool bold = false) : bold(bold) {
 
 	}
@@ -78,6 +84,9 @@ public:
 
 	void SetDefaultFramebuffer(GLuint defaultFramebuffer) { this->defaultFramebuffer = defaultFramebuffer; }
 
+	void AddSizeChangedListener(SizeChangedListener *listener);
+	void RemoveSizeChangedListener(SizeChangedListener *listener);
+
 private:
 	struct Character {
 		Character() = delete;
@@ -107,8 +116,10 @@ private:
 
 	std::vector<std::string> fonts;
 
-	FT_Library ft;
+	FT_Library ft = nullptr;
 	std::vector<FT_Face> faces;
+
+	FT_UInt size = 0;
 
 	VertexArray vao;
 	ArrayBuffer vbo;
@@ -131,6 +142,8 @@ private:
 	Bounds em{ 0, 0, 0, 0 };
 
 	GLuint defaultFramebuffer = 0;
+
+	std::set<SizeChangedListener*> sizeChangedListeners;
 
 	bool bold = false;
 };

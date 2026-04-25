@@ -181,6 +181,10 @@ bool OpenGLFont::OnInit(const std::string &rootFont, FT_UInt size, int outline) 
 }
 
 bool OpenGLFont::SetFontSize(FT_UInt size) {
+	if (this->size == size) return true;
+
+	this->size = size;
+
 	// Reset overhang so it
 	// can be recalculated
 	overhang = 0;
@@ -205,6 +209,9 @@ bool OpenGLFont::SetFontSize(FT_UInt size) {
 	vao = VertexArray();
 
 	LoadInitialCharacters();
+
+	for (auto *listener : sizeChangedListeners)
+		listener->OnSizeChanged(size);
 
 	return true;
 }
@@ -389,5 +396,13 @@ void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::
 	vao.Unbind();
 
 	context.Use("texture"_hash);
+}
+
+void OpenGLFont::AddSizeChangedListener(SizeChangedListener *listener) {
+	sizeChangedListeners.emplace(listener);
+}
+
+void OpenGLFont::RemoveSizeChangedListener(SizeChangedListener *listener) {
+	sizeChangedListeners.erase(listener);
 }
 }
