@@ -161,10 +161,13 @@ bool Vulkan::OnResize(int width, int height) {
 }
 
 void Vulkan::SetFormat(VkFormat format, VkColorSpaceKHR colorSpace, GLenum internalFormat) {
-	if (this->format != format)
+	if (this->format != format) {
+		this->format = format;
 		formatChanged = true;
+		RecreateSwapChain();
+		formatChanged = false;
+	}
 
-	this->format = format;
 	this->colorSpace = colorSpace;
 	this->internalFormat = internalFormat;
 }
