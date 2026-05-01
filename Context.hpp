@@ -165,6 +165,33 @@ public:
 	void SetSafeArea(Rectanglei &&rect) { this->safeArea = std::move(rect); }
 	const Rectanglei &GetSafeArea() const { return safeArea; }
 
+	// Blends while maintaining the _destination_'s alpha
+	inline void Blend(bool enabled, std::function<void()> &&f) {
+		if (enabled) StartBlend();
+
+		f();
+
+		if (enabled) EndBlend();
+	}
+
+	inline void StartBlend() {
+		glBlendFuncSeparate(
+			GL_SRC_ALPHA,
+			GL_ONE_MINUS_SRC_ALPHA,
+			GL_ZERO,
+			GL_ONE
+		);
+	}
+
+	inline void EndBlend() {
+		glBlendFuncSeparate(
+			GL_SRC_ALPHA,
+			GL_ONE_MINUS_SRC_ALPHA,
+			GL_SRC_ALPHA,
+			GL_ONE_MINUS_SRC_ALPHA
+		);
+	}
+
 private:
 	std::map<std::uint32_t, Shader> shaders;
 	Shader *currentShader = nullptr;
