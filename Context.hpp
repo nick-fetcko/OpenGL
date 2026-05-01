@@ -11,10 +11,16 @@
 #include "Shader.hpp"
 #include "ShaderProgram.hpp"
 
+#define VALIDATE_THREAD 0
+
 using namespace MathsCPP;
 
 namespace Fetcko {
-class Context {
+class Context 
+#if VALIDATE_THREAD
+	: public LoggableClass
+#endif
+{
 public:
 	struct Shader {
 		VertexShader vertex;
@@ -31,6 +37,12 @@ public:
 		std::filesystem::path fragment,
 		std::uint32_t hash
 	) {
+
+#if VALIDATE_THREAD
+		if (!mainThread)
+			mainThread = std::this_thread::get_id();
+#endif
+
 		return AddShader(vertex, std::vector<std::filesystem::path>{ fragment }, hash);
 	}
 
@@ -92,6 +104,11 @@ public:
 	void Use(std::uint32_t hash) {
 		currentShader = &shaders.at(hash);
 		currentShader->program.Use();
+
+#if VALIDATE_THREAD
+		if (mainThread && std::this_thread::get_id() != *mainThread)
+			LogWarning("Using shader on wrong thread!");
+#endif
 	}
 
 	void With(std::uint32_t hash, std::function<void(Shader&)> f) {
@@ -158,5 +175,9 @@ private:
 	float yOffset = 0.0f;
 
 	Rectanglei safeArea{0, 0, 0, 0};
+
+#if VALIDATE_THREAD
+	std::optional<std::thread::id> mainThread = std::nullopt;
+#endif
 };
 }
