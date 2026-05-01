@@ -37,8 +37,14 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::s
 		FT_Glyph _glyph;
 		auto error = FT_Get_Glyph((*face)->glyph, &_glyph);
 
-		if (stroker)
-			error = FT_Glyph_StrokeBorder(&_glyph, stroker, false, true);
+		if (stroker) {
+			// Certain characters with dots have an "inside" stroke that
+			// ends up lying outside the outside stroke
+			if (c == ':' || c == 'i' || c == '.' || c == 0x30FB /* KATAKANA MIDDLE DOT */)
+				error = FT_Glyph_StrokeBorder(&_glyph, stroker, false, true);
+			else
+				error = FT_Glyph_Stroke(&_glyph, stroker, true);
+		}
 
 		error = FT_Glyph_To_Bitmap(&_glyph, FT_RENDER_MODE_LCD, nullptr, true);
 
@@ -221,6 +227,11 @@ void OpenGLFont::SetOutlineRadius(float radius) {
 
 	FT_Stroker_New(ft, &stroker);
 	FT_Stroker_Set(stroker, static_cast<FT_Fixed>(radius * 64.0f), FT_STROKER_LINECAP_ROUND, FT_STROKER_LINEJOIN_ROUND, 0);
+
+	// This implicitly casts to an int
+	// _on purpose_ to prevent subpixel
+	// weirdness as this value is used
+	// directly when rendering.
 	outlineRadius = radius;
 
 	// Flush any characters we have
@@ -314,6 +325,8 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	// the glyphs bleed over into each other
 	if (outlineRadius == 0)
 		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	else
+		glBlendFuncSeparate(GL_SRC_COLOR, GL_DST_COLOR, GL_SRC_ALPHA, GL_DST_ALPHA);
 
 	glGetIntegerv(GL_VIEWPORT, oldViewport);
 	glViewport(0, 0, bounds.width, bounds.renderedHeight);
@@ -335,7 +348,7 @@ std::pair<std::unique_ptr<FramebufferObject>, OpenGLFont::Bounds> OpenGLFont::Ca
 	glViewport(oldViewport[0], oldViewport[1], oldViewport[2], oldViewport[3]);
 
 	// Return to our normal blending
-	if (outlineRadius == 0)
+	//if (outlineRadius == 0)
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	return std::make_pair(std::move(framebuffer), bounds);
