@@ -242,6 +242,8 @@ bool DXGI::OnResize(int width, int height) {
 void DXGI::OnDestroy() {
 	Unload();
 
+	if (!swapChain) return;
+
 	swapChain->Release();
 
 	deviceContext->ClearState();
