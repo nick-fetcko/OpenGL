@@ -40,7 +40,7 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::s
 		if (stroker) {
 			// Certain characters with dots have an "inside" stroke that
 			// ends up lying outside the outside stroke
-			if (c == ':' || c == 'i' || c == '.' || c == 0x30FB /* KATAKANA MIDDLE DOT */)
+			if (c == ':' || c == 'i' || c == '.' || c == '?' || c == 0x30FB /* KATAKANA MIDDLE DOT */)
 				error = FT_Glyph_StrokeBorder(&_glyph, stroker, false, true);
 			else
 				error = FT_Glyph_Stroke(&_glyph, stroker, true);
