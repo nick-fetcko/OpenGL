@@ -46,6 +46,10 @@ std::map<FT_ULong, OpenGLFont::Character>::iterator OpenGLFont::LoadGlyph(std::s
 				error = FT_Glyph_Stroke(&_glyph, stroker, true);
 		}
 
+		// Kurinto Sans doesn't have bold glyphs for Japanese kana
+		if (bold && ((c >= 0x30A0 && c <= 0x30FF) /* Katakana */ || (c >= 0x3041 && c <= 0x309F) /* Hiragana */))
+			FT_Outline_Embolden(&reinterpret_cast<FT_OutlineGlyph>(_glyph)->outline, 64);
+
 		error = FT_Glyph_To_Bitmap(&_glyph, FT_RENDER_MODE_LCD, nullptr, true);
 
 		glyph = reinterpret_cast<FT_BitmapGlyph>(_glyph);
