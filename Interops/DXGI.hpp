@@ -40,6 +40,8 @@ public:
 
 	std::optional<std::tuple<bool, float, float>> GetHdrProperties(int outputIndex, bool force = false);
 
+	const bool IsActive() const override { return swapChain != nullptr; }
+
 private:
 	inline bool Load();
 	inline void Unload();

@@ -27,6 +27,8 @@ public:
 
 	const GLuint GetFramebuffer() const { return fbo; }
 
+	virtual const bool IsActive() const { return true; }
+
 protected:
 	GLuint fbo = 0;
 };
