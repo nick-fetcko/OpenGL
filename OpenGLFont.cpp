@@ -369,7 +369,7 @@ void OpenGLFont::RenderCached(const std::unique_ptr<FramebufferObject> &framebuf
 }
 
 void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::vec3 color, Context &context) {
-	context.Use("font"_hash);
+	const auto hash = context.GetLastHashAndUse("font"_hash);
 
 	if (color != lastColor) {
 		context.Color(color.x, color.y, color.z, 1.0f);
@@ -412,7 +412,8 @@ void OpenGLFont::RenderText(const std::string &text, glm::mat4 projection, glm::
 	}
 	vao.Unbind();
 
-	context.Use("texture"_hash);
+	if (hash)
+		context.Use(hash);
 }
 
 void OpenGLFont::AddSizeChangedListener(SizeChangedListener *listener) {
