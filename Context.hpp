@@ -109,6 +109,16 @@ public:
 		if (mainThread && std::this_thread::get_id() != *mainThread)
 			LogWarning("Using shader on wrong thread!");
 #endif
+
+		currentShaderHash = hash;
+	}
+
+	std::uint32_t GetLastHashAndUse(std::uint32_t hash) {
+		const auto ret = currentShaderHash;
+
+		Use(hash);
+
+		return ret;
 	}
 
 	void With(std::uint32_t hash, std::function<void(Shader&)> f) {
@@ -194,6 +204,7 @@ public:
 
 private:
 	std::map<std::uint32_t, Shader> shaders;
+	std::uint32_t currentShaderHash = 0;
 	Shader *currentShader = nullptr;
 
 	glm::mat4 identity{ 0.0f };
