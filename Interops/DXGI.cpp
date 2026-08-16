@@ -245,6 +245,7 @@ void DXGI::OnDestroy() {
 	if (!swapChain) return;
 
 	swapChain->Release();
+	swapChain = nullptr;
 
 	deviceContext->ClearState();
 
