@@ -152,7 +152,7 @@ inline bool OpenGLFont::LoadInitialCharacters() {
 
 bool OpenGLFont::OnInit(const std::vector<std::string> &fonts, FT_UInt size, int outline) {
 	if (FT_Init_FreeType(&ft)) {
-		LogError("Could not init FreeType Library");
+		LogError<true>("FreeType Error", "Could not init FreeType Library");
 		return false;
 	}
 
@@ -183,7 +183,7 @@ bool OpenGLFont::OnInit(const std::string &rootFont, FT_UInt size, int outline) 
 	}
 
 	if (fontFiles.empty()) {
-		LogError("Could not find any font files with the root of '", rootFont, "'!");
+		LogError<true>("FreeType Error", "Could not find any font files with the root of '", rootFont, "'!");
 		return false;
 	}
 
@@ -205,7 +205,7 @@ bool OpenGLFont::SetFontSize(FT_UInt size) {
 	for (const auto &[i, font] : Utils::Enumerate(fonts)) {
 		auto path = Utils::GetResource(font).u8string();
 		if (FT_New_Face(ft, path.c_str(), 0, &faces[i])) {
-			LogError("Failed to load font ", font);
+			LogError<true>("FreeType Error", "Failed to load font ", font);
 			return false;
 		}
 

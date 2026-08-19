@@ -24,7 +24,7 @@ std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputI
 	lastOutputIndex = outputIndex;
 
 	if (hr = adapter->EnumOutputs(outputIndex, &output); hr != S_OK) {
-		LogError("IDXGIAdapter::EnumOutputs() failed: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "IDXGIAdapter::EnumOutputs() failed: ", std::hex, hr);
 		return std::nullopt;
 	}
 
@@ -116,7 +116,7 @@ std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputI
 			}
 		}
 	} else {
-		LogError("Could not query output interface: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "Could not query output interface: ", std::hex, hr);
 		return std::nullopt;
 	}
 
@@ -125,24 +125,24 @@ std::optional<std::tuple<bool, float, float>> DXGI::GetHdrProperties(int outputI
 
 bool DXGI::OnInit(const InitArgs &args) {
 	if (hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(IDXGIFactory6), (void **)&factory); hr != S_OK) {
-		LogError("Could not create DXGIFactory2!");
+		LogError<true>("DirectX 11 Error", "Could not create DXGIFactory2!");
 		return false;
 	}
 
 	if (hr = factory->EnumAdapters1(args.adapterIndex, &adapter); hr != S_OK) {
-		LogError("IDXGIFactory::EnumAdapters1() failed: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "IDXGIFactory::EnumAdapters1() failed: ", std::hex, hr);
 		return false;
 	}
 
 	DXGI_ADAPTER_DESC1 adapterDesc;
 
 	if (hr = adapter->GetDesc1(&adapterDesc); hr != S_OK) {
-		LogError("IDXGIAdapter::GetDesc() failed: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "IDXGIAdapter::GetDesc() failed: ", std::hex, hr);
 		return false;
 	}
 
 	if (adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-		LogError("Got software DXGI adapter");
+		LogError<true>("DirectX 11 Error", "Got software DXGI adapter");
 		return false;
 	}
 
@@ -167,7 +167,7 @@ bool DXGI::OnCreate(HWND hwnd, int width, int height) {
 	);
 
 	if (hr != S_OK) {
-		LogError("Could not create DX11 device: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "Could not create DX11 device: ", std::hex, hr);
 		return false;
 	}
 
@@ -199,7 +199,7 @@ bool DXGI::OnCreate(HWND hwnd, int width, int height) {
 		gladLoadWGL(dc);
 		dxDevice = wglDXOpenDeviceNV(device);
 	} else {
-		LogError("Could not create DXGI swapchain: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "Could not create DXGI swapchain: ", std::hex, hr);
 		return false;
 	}
 
@@ -220,7 +220,7 @@ bool DXGI::OnResize(int width, int height) {
 	Unload();
 
 	if (auto hr = swapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0); hr != S_OK) {
-		LogError("Could not resize buffers: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "Could not resize buffers: ", std::hex, hr);
 		return false;
 	}
 
@@ -273,13 +273,13 @@ void DXGI::OnDestroy() {
 
 inline bool DXGI::Load() {
 	if (hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&colorBuffer)); hr != S_OK) {
-		LogError("Could not get colorBuffer: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "Could not get colorBuffer: ", std::hex, hr);
 		colorBuffer = nullptr;
 		return false;
 	}
 
 	if (hr = device->CreateRenderTargetView(colorBuffer, NULL, &colorView); hr != S_OK) {
-		LogError("Could not create render target view: ", std::hex, hr);
+		LogError<true>("DirectX 11 Error", "Could not create render target view: ", std::hex, hr);
 		return false;
 	}
 
@@ -294,12 +294,12 @@ inline bool DXGI::Load() {
 		desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
 		if (hr = device->CreateTexture2D(&desc, NULL, &dsBuffer); hr != S_OK) {
-			LogError("Could not create Texture2D: ", std::hex, hr);
+			LogError<true>("DirectX 11 Error", "Could not create Texture2D: ", std::hex, hr);
 			return false;
 		}
 
 		if (hr = device->CreateDepthStencilView(dsBuffer, NULL, &dsView); hr != S_OK) {
-			LogError("Could not create depth stencil view: ", std::hex, hr);
+			LogError<true>("DirectX 11 Error", "Could not create depth stencil view: ", std::hex, hr);
 			return false;
 		}
 	}
@@ -328,16 +328,16 @@ bool DXGI::OnLoop() {
 		auto error = GetLastError() & 0x00FF;
 		switch (error) {
 		case ERROR_INVALID_HANDLE:
-			LogError("Invalid handle!");
+			LogError<true>("DirectX 11 Error", "Invalid handle!");
 			break;
 		case ERROR_INVALID_DATA:
-			LogError("Invalid data!");
+			LogError<true>("DirectX 11 Error", "Invalid data!");
 			break;
 		case ERROR_OPEN_FAILED:
-			LogError("Open failed!");
+			LogError<true>("DirectX 11 Error", "Open failed!");
 			break;
 		default:
-			LogError("Unknown error!");
+			LogError<true>("DirectX 11 Error", "Unknown error!");
 			break;
 		}
 
@@ -346,7 +346,7 @@ bool DXGI::OnLoop() {
 
 	if (depthBuffer) {
 		if (dxObjects[1] = wglDXRegisterObjectNV(dxDevice, dsBuffer, dsRbuf, GL_RENDERBUFFER, WGL_ACCESS_READ_WRITE_NV); !dxObjects[1]) {
-			LogError("Could not register stencil buffer!");
+			LogError<true>("DirectX 11 Error", "Could not register stencil buffer!");
 			return false;
 		}
 	}

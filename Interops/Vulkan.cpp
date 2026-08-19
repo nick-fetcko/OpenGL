@@ -297,7 +297,7 @@ void Vulkan::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT
 
 void Vulkan::CreateInstance() {
 	if (enableValidationLayers && !CheckValidationLayerSupport())
-		LogError("validation layers requested, but not available!");
+		LogError<true>("Vulkan Error", "Validation layers requested, but not available!");
 
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -340,7 +340,7 @@ void Vulkan::CreateInstance() {
 		LogDebug('\t', extension.extensionName);
 
 	if (auto ret = vkCreateInstance(&createInfo, nullptr, &instance); ret != VK_SUCCESS)
-		LogError("failed to create instance! ", ret);
+		LogError<true>("Vulkan Error", "Failed to create instance! ", ret);
 }
 
 void Vulkan::SetupDebugMessenger() {
@@ -350,7 +350,7 @@ void Vulkan::SetupDebugMessenger() {
 	PopulateDebugMessengerCreateInfo(createInfo);
 
 	if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
-		LogError("failed to set up debug messenger!");
+		LogError<true>("Vulkan Error", "Failed to set up debug messenger!");
 }
 
 void Vulkan::CreateSurface() {
@@ -462,7 +462,7 @@ void Vulkan::PickPhysicalDevice() {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 	if (!deviceCount)
-		LogError("failed to find GPUs with Vulkan support!");
+		LogError<true>("Vulkan Error", "Failed to find GPUs with Vulkan support!");
 
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -479,10 +479,10 @@ void Vulkan::PickPhysicalDevice() {
 
 		LogDebug("Selected device \"", std::get<1>(candidates.rbegin()->second), "\" based on rating ", candidates.rbegin()->first, ". Max texture size = ", maxTextureSize);
 	} else
-		LogError("failed to find a suitable GPU!");
+		LogError<true>("Vulkan Error", "Failed to find a suitable GPU!");
 
 	if (physicalDevice == VK_NULL_HANDLE)
-		LogError("failed to find a suitable GPU!");
+		LogError<true>("Vulkan Error", "Failed to find a suitable GPU!");
 }
 
 void Vulkan::CreateLogicalDevice() {
@@ -519,7 +519,7 @@ void Vulkan::CreateLogicalDevice() {
 	}
 
 	if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
-		LogError("failed to create logical device!");
+		LogError<true>("Vulkan Error", "Failed to create logical device!");
 
 	vkGetDeviceQueue(device, *indices.graphicsFamily, 0, &graphicsQueue);
 	vkGetDeviceQueue(device, *indices.presentFamily, 0, &presentQueue);
@@ -626,7 +626,7 @@ void Vulkan::CreateSwapChain() {
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
 
 	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
-		LogError("failed to create swap chain!");
+		LogError<true>("Vulkan Error", "Failed to create swap chain!");
 
 	vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
 	swapChainImages.resize(imageCount);
@@ -684,7 +684,7 @@ void Vulkan::CreateImageViews() {
 		createInfo.subresourceRange.layerCount = 1;
 
 		if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
-			LogError("failed to create image view!");
+			LogError<true>("Vulkan Error", "failed to create image view!");
 	}
 }
 
@@ -726,7 +726,7 @@ void Vulkan::CreateRenderPass() {
 	renderPassInfo.pDependencies = &dependency;
 
 	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
-		LogError("failed to create render pass!");
+		LogError<true>("Vulkan Error", "Failed to create render pass!");
 }
 
 void Vulkan::DestroyRenderPass() {
@@ -741,7 +741,7 @@ VkShaderModule Vulkan::CreateShaderModule(const std::string &code) {
 
 	VkShaderModule shaderModule;
 	if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
-		LogError("failed to create shader module!");
+		LogError<true>("Vulkan Error", "Failed to create shader module!");
 
 	return shaderModule;
 }
@@ -857,7 +857,7 @@ void Vulkan::CreateGraphicsPipeline() {
 	pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
 	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
-		LogError("failed to create pipeline layout!");
+		LogError<true>("Vulkan Error", "Failed to create pipeline layout!");
 
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -878,7 +878,7 @@ void Vulkan::CreateGraphicsPipeline() {
 	pipelineInfo.basePipelineIndex = -1;
 
 	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
-		LogError("failed to create graphics pipeline!");
+		LogError<true>("Vulkan Error", "Failed to create graphics pipeline!");
 
 	vkDestroyShaderModule(device, fragShaderModule, nullptr);
 	vkDestroyShaderModule(device, vertShaderModule, nullptr);
@@ -907,7 +907,7 @@ void Vulkan::CreateFramebuffers() {
 		framebufferInfo.layers = 1;
 
 		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
-			LogError("failed to create framebuffer!");
+			LogError<true>("Vulkan Error", "Failed to create framebuffer!");
 	}
 }
 
@@ -920,7 +920,7 @@ void Vulkan::CreateCommandPool() {
 	poolInfo.queueFamilyIndex = *queueFamilyIndices.graphicsFamily;
 
 	if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-		LogError("failed to create command pool!");
+		LogError<true>("Vulkan Error", "Failed to create command pool!");
 }
 
 void Vulkan::CreateCommandBuffer() {
@@ -931,7 +931,7 @@ void Vulkan::CreateCommandBuffer() {
 	allocInfo.commandBufferCount = 1;
 
 	if (vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer) != VK_SUCCESS)
-		LogError("failed to allocate command buffers!");
+		LogError<true>("Vulkan Error", "Failed to allocate command buffers!");
 }
 
 void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer) {
@@ -941,7 +941,7 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer) {
 	beginInfo.pInheritanceInfo = nullptr;
 
 	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-		LogError("failed to begin recording command buffer!");
+		LogError<true>("Vulkan Error", "Failed to begin recording command buffer!");
 
 	VkImageLayout imageLayout{};
 
@@ -1027,7 +1027,7 @@ bool Vulkan::SwapBuffers() {
 		0, 0, nullptr, 0, nullptr, 1, &presentBarrier);
 
 	if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-		LogError("failed to record command buffer!");
+		LogError<true>("Vulkan Error", "Failed to record command buffer!");
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1045,7 +1045,7 @@ bool Vulkan::SwapBuffers() {
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
 	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence) != VK_SUCCESS)
-		LogError("failed to submit draw command buffer!");
+		LogError<true>("Vulkan Error", "Failed to submit draw command buffer!");
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1085,11 +1085,11 @@ void Vulkan::CreateSyncObjects() {
 	for (std::size_t i = 0; i < swapChainImages.size(); ++i) {
 		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
 			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS)
-			LogError("failed to create semaphor for image ", i);
+			LogError<true>("Vulkan Error", "Failed to create semaphor for image ", i);
 	}
 
 	if (vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS)
-		LogError("Could not create fence!");
+		LogError<true>("Vulkan Error", "Could not create fence!");
 }
 
 void Vulkan::DestroySyncObjects() {
@@ -1161,10 +1161,10 @@ void Vulkan::CreateSharedResources() {
 											  &exportSemaphoreCreateInfo };
 	if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr,
 		&sharedSemaphores.gl_complete) != VK_SUCCESS)
-		LogError("could not create semaphore!");
+		LogError<true>("Vulkan Error", "Could not create semaphore!");
 	if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr,
 		&sharedSemaphores.gl_ready) != VK_SUCCESS)
-		LogError("could not create semaphore!");
+		LogError<true>("Vulkan Error", "Could not create semaphore!");
 
 #ifdef WIN32
 	VkSemaphoreGetWin32HandleInfoKHR semaphoreGetHandleInfo{
@@ -1172,20 +1172,20 @@ void Vulkan::CreateSharedResources() {
 		VK_NULL_HANDLE, compatable_semaphore_type };
 	semaphoreGetHandleInfo.semaphore = sharedSemaphores.gl_ready;
 	if (GetSemaphoreWin32HandleKHR(device, &semaphoreGetHandleInfo, &shareHandles.gl_ready) != VK_SUCCESS)
-		LogError("could not get Win32 handle for semaphore!");
+		LogError<true>("Vulkan Error", "Could not get Win32 handle for semaphore!");
 	semaphoreGetHandleInfo.semaphore = sharedSemaphores.gl_complete;
 	if (GetSemaphoreWin32HandleKHR(device, &semaphoreGetHandleInfo, &shareHandles.gl_complete) != VK_SUCCESS)
-		LogError("could not get Win32 handle for semaphore!");
+		LogError<true>("Vulkan Error", "Could not get Win32 handle for semaphore!");
 #else
 	VkSemaphoreGetFdInfoKHR semaphoreGetFdInfo{
 		VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR, nullptr,
 		VK_NULL_HANDLE, compatable_semaphore_type };
 	semaphoreGetFdInfo.semaphore = sharedSemaphores.gl_ready;
 	if (GetSemaphoreFdKHR(device, &semaphoreGetFdInfo, &shareHandles.gl_ready) != VK_SUCCESS)
-		LogError("Could not get file descriptor for semaphore!");
+		LogError<true>("Vulkan Error", "Could not get file descriptor for semaphore!");
 	semaphoreGetFdInfo.semaphore = sharedSemaphores.gl_complete;
 	if (GetSemaphoreFdKHR(device, &semaphoreGetFdInfo, &shareHandles.gl_complete) != VK_SUCCESS)
-		LogError("Could not get file descriptor for semaphore!");
+		LogError<true>("Vulkan Error", "Could not get file descriptor for semaphore!");
 #endif
 
 	VkExternalMemoryImageCreateInfo external_memory_image_create_info{ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO };
@@ -1208,7 +1208,7 @@ void Vulkan::CreateSharedResources() {
 	imageCreateInfo.extent.height = swapChainExtent.height;
 	imageCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	if (vkCreateImage(device, &imageCreateInfo, nullptr, &sharedTexture.image) != VK_SUCCESS)
-		LogError("could not allocate shared texture!");
+		LogError<true>("Vulkan Error", "Could not allocate shared texture!");
 
 	VkMemoryDedicatedAllocateInfo dedicated_allocate_info;
 	dedicated_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
@@ -1246,23 +1246,23 @@ void Vulkan::CreateSharedResources() {
 	memAllocInfo.allocationSize = sharedTexture.allocationSize = memReqs.size;
 	memAllocInfo.memoryTypeIndex = memoryType;
 	if (vkAllocateMemory(device, &memAllocInfo, nullptr, &sharedTexture.memory) != VK_SUCCESS)
-		LogError("could not allocate shared texture memory!");
+		LogError<true>("Vulkan Error", "Could not allocate shared texture memory!");
 
 	if (vkBindImageMemory(device, sharedTexture.image, sharedTexture.memory, 0) != VK_SUCCESS)
-		LogError("could not allocate shared texture memory!");
+		LogError<true>("Vulkan Error", "Could not allocate shared texture memory!");
 
 #ifdef WIN32
 	VkMemoryGetWin32HandleInfoKHR memoryFdInfo{ VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR, nullptr,
 											   sharedTexture.memory,
 											   VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT };
 	if (GetMemoryWin32HandleKHR(device, &memoryFdInfo, &shareHandles.memory) != VK_SUCCESS)
-		LogError("could not get win32 handle!");
+		LogError<true>("Vulkan Error", "Could not get win32 handle!");
 #else
 	VkMemoryGetFdInfoKHR memoryFdInfo{ VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR, nullptr,
 									  sharedTexture.memory,
 									  VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT };
 	if (GetMemoryFdKHR(device, &memoryFdInfo, &shareHandles.memory) != VK_SUCCESS)
-		LogError("Could not get memory file descriptor!");
+		LogError<true>("Vulkan Error", "Could not get memory file descriptor!");
 #endif
 
 	// Calculate valid filter and mipmap modes

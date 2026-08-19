@@ -48,7 +48,7 @@ public:
 			std::vector<char> infoLog(size);
 			glGetShaderInfoLog(handle, size, nullptr, infoLog.data());
 
-			LogError("Shader compilation failed:\n", std::string(infoLog.begin(), infoLog.end()));
+			LogError<true>("Shader compilation failed:\n", std::string(infoLog.begin(), infoLog.end()));
 		}
 
 		return ret != 0;
