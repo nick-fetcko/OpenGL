@@ -365,6 +365,8 @@ bool DXGI::OnLoop() {
 }
 
 bool DXGI::SwapBuffers() {
+	if (!swapChain) return true;
+
 	wglDXUnlockObjectsNV(dxDevice, depthBuffer ? 2 : 1, dxObjects);
 
 	wglDXUnregisterObjectNV(dxDevice, dxObjects[0]);
